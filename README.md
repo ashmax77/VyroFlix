@@ -169,7 +169,9 @@ VyroFlix follows a **domain-oriented microservices** architecture. Each service 
 | **Prometheus** | Metrics collection |
 | **Structured JSON Logging** | Centralized, searchable logs |
 | **Correlation ID Propagation** | Distributed request tracing |
-| **Kubernetes / AWS** | Production deployment target |
+| **Vercel** | Frontend deployment (Hobby plan) |
+| **Render** | Backend deployment (Free plan) |
+| **Cloudflare R2 + CDN** | Object storage and media delivery |
 
 ---
 
@@ -178,11 +180,12 @@ VyroFlix follows a **domain-oriented microservices** architecture. Each service 
 | Service | Responsibility | Database |
 |---|---|---|
 | **API Gateway** | Edge routing, CORS, JWT validation, rate limiting, correlation ID propagation | — |
-| **Identity Service** | User registration, authentication, JWT issuance, refresh-token rotation, roles | PostgreSQL |
-| **Catalog Service** | Movies, series, seasons, episodes, genres, cast, publication state, home-page rails | PostgreSQL |
-| **Playback Service** | Session creation, entitlement checks, signed HLS URL generation, concurrent-session limits | PostgreSQL + Redis |
+| **Identity Service** | Supabase Auth integration, internal user profiles, roles (USER/ADMIN) | PostgreSQL |
+| **Content-Service** | Movies, series, seasons, episodes, genres, cast, publication state, home-page rails | PostgreSQL |
+| **Video-Service** | Pre-signed upload URLs, upload intent tracking, raw video ingestion | PostgreSQL + Object Storage |
+| **Encoding-Service** | FFmpeg transcoding, multi-bitrate HLS packaging, encoding job management | PostgreSQL + Object Storage |
+| **Streaming-Service** | Playback session creation, entitlement checks, signed HLS URL generation | PostgreSQL + Redis |
 | **History Service** | Watch progress, continue watching, watchlist, completion tracking | PostgreSQL |
-| **Media Service** | Pre-signed upload URLs, upload tracking, transcoding (FFmpeg), HLS output management | PostgreSQL + Object Storage |
 | **Search Service** | Denormalized search index, full-text search, filters, lightweight search cards | PostgreSQL (Phase 1) → OpenSearch (Phase 2) |
 | **Recommendation Service** | Trending, genre-based, and similar-title rails; cached responses; graceful degradation | Redis + PostgreSQL |
 
@@ -192,20 +195,37 @@ VyroFlix follows a **domain-oriented microservices** architecture. Each service 
 
 ```
 VyroFlix/
-├── backend/                  # Spring Boot microservices
+├── apps/
+│   └── web/                          # Next.js App Router frontend
+├── services/                         # Spring Boot microservices (Maven multi-module)
+│   ├── pom.xml                       # Parent POM — dependency management
+│   ├── common/                       # Shared library module
+│   ├── platform/                     # Combined deployable module for Render
 │   ├── api-gateway/
 │   ├── identity-service/
-│   ├── catalog-service/
-│   ├── playback-service/
+│   ├── content-service/
+│   ├── video-service/
+│   ├── encoding-service/
+│   ├── streaming-service/
 │   ├── history-service/
-│   ├── media-service/
 │   ├── search-service/
 │   └── recommendation-service/
-├── web/                      # Next.js/React frontend
-├── AGENTS.md                 # Agent implementation rules
-├── ARCHITECTURE.md           # System architecture and design
-├── PROJECT_REQUIREMENTS.md   # Functional and non-functional requirements
-└── README.md                 # This file
+├── infra/
+│   ├── docker/                       # Docker-related configs & init scripts
+│   ├── observability/                # Prometheus, Grafana configs
+│   ├── render/                       # Render deployment config
+│   └── vercel/                       # Vercel deployment config
+├── docs/
+│   ├── api/                          # OpenAPI specs
+│   └── events/                       # Event schema documentation
+├── tests/
+│   └── load/                         # k6 / Gatling load tests
+├── .env.example
+├── docker-compose.yml
+├── AGENTS.md                         # Agent implementation rules
+├── ARCHITECTURE.md                   # System architecture and design
+├── PROJECT_REQUIREMENTS.md           # Functional and non-functional requirements
+└── README.md                         # This file
 ```
 
 ---
@@ -243,7 +263,7 @@ VyroFlix/
 4. **Run the web frontend**
 
    ```bash
-   cd web
+   cd apps/web
    npm install
    npm run dev
    ```

@@ -1,0 +1,95 @@
+# ============================================================
+# VyroFlix .gitignore
+# ============================================================
+
+# ---------- Java / Maven ----------
+services/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+replay_pid*
+
+# ---------- Spring Boot ----------
+*.pid
+spring-shell.log
+
+# ---------- Node / Next.js ----------
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/.cache/
+apps/web/.vercel/
+apps/web/.turbo/
+apps/web/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ---------- IDE ----------
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+
+# ---------- Environment & Secrets ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---------- Docker ----------
+docker-compose.override.yml
+
+# ---------- Terraform / IaC ----------
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# ---------- Test & Coverage ----------
+tests/load/results/
+**/test-results/
+**/playwright-report/
+**/.playwright/
+
+# ---------- MinIO local data ----------
+infra/docker/minio-data/
+
+# ---------- Sample media (large files) ----------
+infra/sample-media/*.mp4
+infra/sample-media/*.ts
+infra/sample-media/*.m3u8
+
+# ---------- Miscellaneous ----------
+*.bak
+*.tmp
+*.temp
+
+AGENTS.md
+ARCHITECTURE.md
+PROJECT_REQUIREMENTS.md
