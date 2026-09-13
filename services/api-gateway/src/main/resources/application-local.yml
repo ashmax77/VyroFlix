@@ -1,0 +1,17 @@
+# ============================================================
+# VyroFlix API Gateway — Local Development Profile
+# ============================================================
+server:
+  port: 8080
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.vyroflix: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
