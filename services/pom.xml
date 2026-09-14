@@ -32,8 +32,8 @@
     <modules>
         <module>common</module>
         <module>api-gateway</module>
-        <!--
         <module>identity-service</module>
+        <!--
         <module>content-service</module>
         <module>video-service</module>
         <module>encoding-service</module>
