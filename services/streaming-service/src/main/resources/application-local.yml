@@ -1,0 +1,12 @@
+server:
+  port: 8085
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.vyroflix: DEBUG

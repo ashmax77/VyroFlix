@@ -36,8 +36,8 @@
         <module>content-service</module>
         <module>video-service</module>
         <module>encoding-service</module>
-        <!--
         <module>streaming-service</module>
+        <!--
         <module>history-service</module>
         <module>search-service</module>
         <module>recommendation-service</module>
