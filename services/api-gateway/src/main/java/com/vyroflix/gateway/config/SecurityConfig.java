@@ -7,11 +7,9 @@ import com.vyroflix.common.error.ErrorResponse;
 import com.vyroflix.common.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -31,9 +29,12 @@ import java.time.Instant;
 /**
  * Reactive security configuration for the API Gateway.
  *
- * <p>Validates Supabase-issued JWTs against the configured JWKS endpoint.
- * Public routes (health, auth, catalog browsing, search) are accessible without authentication.
- * User and Admin routes require valid bearer tokens.</p>
+ * <p>
+ * Validates Supabase-issued JWTs against the configured JWKS endpoint.
+ * Public routes (health, auth, catalog browsing, search) are accessible without
+ * authentication.
+ * User and Admin routes require valid bearer tokens.
+ * </p>
  */
 @Slf4j
 @Configuration
@@ -62,17 +63,14 @@ public class SecurityConfig {
                         // All other /api/v1/** endpoints require authentication
                         .pathMatchers("/api/v1/**").authenticated()
                         // Any remaining requests
-                        .anyExchange().permitAll()
-                )
+                        .anyExchange().permitAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(authenticationEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
-                )
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
-                )
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .build();
     }
 
@@ -82,7 +80,8 @@ public class SecurityConfig {
             log.warn("Unauthorized access attempt: {} {}",
                     exchange.getRequest().getMethod(),
                     exchange.getRequest().getURI().getPath());
-            return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED, "Authentication required");
+            return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED,
+                    "Authentication required");
         };
     }
 
@@ -121,7 +120,8 @@ public class SecurityConfig {
         try {
             bytes = objectMapper.writeValueAsBytes(errorBody);
         } catch (JsonProcessingException e) {
-            bytes = ("{\"error\":\"" + errorCode.name() + "\",\"message\":\"" + message + "\"}").getBytes(StandardCharsets.UTF_8);
+            bytes = ("{\"error\":\"" + errorCode.name() + "\",\"message\":\"" + message + "\"}")
+                    .getBytes(StandardCharsets.UTF_8);
         }
 
         DataBuffer buffer = response.bufferFactory().wrap(bytes);

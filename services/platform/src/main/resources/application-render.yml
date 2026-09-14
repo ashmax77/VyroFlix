@@ -1,0 +1,18 @@
+# ============================================================
+# VyroFlix Platform — Render Free Tier Profile
+# ============================================================
+server:
+  port: ${PORT:8081}
+
+management:
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.vyroflix: INFO
+    org.springframework.web: WARN
