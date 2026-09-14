@@ -7,6 +7,26 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:vyroflix}?currentSchema=identity}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:vyroflix}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:vyroflix}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: identity
+        format_sql: true
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    schemas: identity
+    default-schema: identity
+
 management:
   endpoints:
     web:
