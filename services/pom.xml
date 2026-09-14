@@ -39,8 +39,8 @@
         <module>streaming-service</module>
         <module>history-service</module>
         <module>search-service</module>
-        <!--
         <module>recommendation-service</module>
+        <!--
         <module>platform</module>
         -->
     </modules>
