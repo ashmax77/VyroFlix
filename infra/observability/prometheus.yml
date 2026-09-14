@@ -1,0 +1,84 @@
+# ============================================================
+# VyroFlix — Prometheus Configuration
+# Scrapes Spring Boot Actuator metrics across all services
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # API Gateway
+  - job_name: "api-gateway"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          application: "api-gateway"
+          environment: "local"
+
+  # Combined Platform (when running single-instance backend)
+  - job_name: "platform"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+        labels:
+          application: "platform"
+          environment: "local"
+
+  # Individual Microservices (when running distributed)
+  - job_name: "identity-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+        labels:
+          application: "identity-service"
+
+  - job_name: "content-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8082"]
+        labels:
+          application: "content-service"
+
+  - job_name: "video-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8083"]
+        labels:
+          application: "video-service"
+
+  - job_name: "encoding-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8084"]
+        labels:
+          application: "encoding-service"
+
+  - job_name: "streaming-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8085"]
+        labels:
+          application: "streaming-service"
+
+  - job_name: "history-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8086"]
+        labels:
+          application: "history-service"
+
+  - job_name: "search-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8087"]
+        labels:
+          application: "search-service"
+
+  - job_name: "recommendation-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8088"]
+        labels:
+          application: "recommendation-service"
