@@ -1,0 +1,80 @@
+name: VyroFlix CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-build:
+    name: Backend Build & Test (Java 21)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and test with Maven
+        run: mvn -B clean verify -f services/pom.xml
+
+  docker-compose-validation:
+    name: Validate Docker Compose Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Docker Compose config syntax
+        run: docker compose config --quiet
+
+  frontend-build:
+    name: Frontend Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check frontend project presence
+        id: check_web
+        run: |
+          if [ -f apps/web/package.json ]; then
+            echo "has_web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_web=false" >> "$GITHUB_OUTPUT"
+            echo "apps/web/package.json not present yet; skipping frontend build."
+          fi
+
+      - name: Set up Node.js 20
+        if: steps.check_web.outputs.has_web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check_web.outputs.has_web == 'true'
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build web application
+        if: steps.check_web.outputs.has_web == 'true'
+        working-directory: apps/web
+        run: npm run build

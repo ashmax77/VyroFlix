@@ -1,5 +1,10 @@
 # 🎬 VyroFlix
 
+[![CI](https://github.com/ashmax77/VyroFlix/actions/workflows/ci.yml/badge.svg)](https://github.com/ashmax77/VyroFlix/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-orange.svg)
+![Spring Boot 3.3.5](https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg)
+![Docker Compose](https://img.shields.io/badge/Docker%20Compose-Ready-blue.svg)
+
 A cloud-native, video-on-demand streaming platform built with a Spring Boot microservice backend and a Next.js/React frontend. Inspired by modern streaming products, VyroFlix demonstrates production-grade architecture with asynchronous event-driven workflows, HLS video delivery, and a polished consumer web experience.
 
 ---
@@ -241,11 +246,12 @@ VyroFlix/
 
 ### Local Development
 
-1. **Clone the repository**
+1. **Clone the repository and set up environment**
 
    ```bash
    git clone <repository-url>
    cd VyroFlix
+   cp .env.example .env
    ```
 
 2. **Start infrastructure with Docker Compose**
@@ -254,13 +260,41 @@ VyroFlix/
    docker compose up -d
    ```
 
-   This starts PostgreSQL, Redis, Kafka, MinIO, and observability tools.
+   This launches the zero-cost local baseline:
+   - **PostgreSQL 16**: Port `5432` (auto-provisions 8 service schemas)
+   - **Redis 7**: Port `6379`
+   - **Apache Kafka 3.7 (KRaft)**: Port `9092`
+   - **Kafka UI**: Port `8090` (`http://localhost:8090`)
+   - **MinIO S3**: Port `9000` (API), Port `9001` (`http://localhost:9001` Web Console)
+   - **Prometheus**: Port `9090` (`http://localhost:9090`)
+   - **Grafana**: Port `3001` (`http://localhost:3001`, user/pass: `admin`/`admin`)
 
-3. **Run backend services**
+3. **Build & Test backend services**
 
-   Each service can be started individually or via the root build tool. Refer to individual service READMEs for environment variables and configuration.
+   ```bash
+   # Run unit and integration tests across all 12 modules
+   mvn clean test -f services/pom.xml
 
-4. **Run the web frontend**
+   # Build executable JAR packages
+   mvn clean package -DskipTests -f services/pom.xml
+   ```
+
+4. **Run backend applications (Local Profile)**
+
+   You can run services individually or launch the combined deployment:
+
+   ```bash
+   # Option A: Combined platform (all 7 domain services in 1 process)
+   mvn spring-boot:run -pl platform -f services/pom.xml -Dspring-boot.run.profiles=local
+
+   # Start API Gateway (handles edge routing, JWT auth, and rate limiting)
+   mvn spring-boot:run -pl api-gateway -f services/pom.xml -Dspring-boot.run.profiles=local
+
+   # Or run any standalone microservice (e.g., content-service)
+   mvn spring-boot:run -pl content-service -f services/pom.xml -Dspring-boot.run.profiles=local
+   ```
+
+5. **Run the web frontend**
 
    ```bash
    cd apps/web
@@ -268,11 +302,14 @@ VyroFlix/
    npm run dev
    ```
 
-5. **Access the application**
+6. **Access the application**
 
-   - Web App: `http://localhost:3000`
-   - API Gateway: `http://localhost:8080`
-   - MinIO Console: `http://localhost:9001`
+   - **Web Application**: `http://localhost:3000`
+   - **API Gateway**: `http://localhost:8080` (health: `http://localhost:8080/actuator/health`)
+   - **MinIO Console**: `http://localhost:9001` (`vyroflix` / `vyroflix123`)
+   - **Kafka UI**: `http://localhost:8090`
+   - **Grafana Dashboards**: `http://localhost:3001`
+
 
 ---
 
