@@ -39,6 +39,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- AWS SDK v2 S3 (includes S3Client and S3Presigner) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
         <!-- Validation — Jakarta Bean Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
