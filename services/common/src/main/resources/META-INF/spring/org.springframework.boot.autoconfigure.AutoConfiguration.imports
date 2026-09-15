@@ -1,0 +1,4 @@
+com.vyroflix.common.config.JacksonConfig
+com.vyroflix.common.messaging.kafka.KafkaConfig
+com.vyroflix.common.messaging.upstash.UpstashConfig
+com.vyroflix.common.outbox.OutboxConfig

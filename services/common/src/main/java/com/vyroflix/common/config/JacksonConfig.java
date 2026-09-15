@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 /**
- * Jackson {@link ObjectMapper} configuration shared across all services.
+ * Jackson configuration shared across all services.
  *
  * <ul>
  *   <li>Java 8+ date/time serialized as ISO 8601 strings, not numeric timestamps.</li>
@@ -17,26 +19,29 @@ import org.springframework.context.annotation.Primary;
  *   <li>Empty beans are serialized without error.</li>
  * </ul>
  */
-@Configuration
+@AutoConfiguration
+@ConditionalOnClass(ObjectMapper.class)
 public class JacksonConfig {
 
     @Bean
-    @Primary
+    public Jackson2ObjectMapperBuilderCustomizer vyroflixJacksonCustomizer() {
+        return builder -> {
+            builder.modules(new JavaTimeModule());
+            builder.featuresToDisable(
+                    SerializationFeature.WRITE_DATES_AS_TIMESTAMPS,
+                    DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                    SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        };
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ObjectMapper.class)
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-
-        // Java 8 date/time support
         mapper.registerModule(new JavaTimeModule());
-
-        // ISO 8601 strings, not epoch millis
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        // Forward compatibility: ignore unknown fields in event payloads
         mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-
-        // Prevent failure on empty beans
         mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
         return mapper;
     }
 }
