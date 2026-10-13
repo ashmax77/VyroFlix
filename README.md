@@ -1,327 +1,266 @@
-# 🎬 VyroFlix
+# VyroFlix
 
 [![CI](https://github.com/ashmax77/VyroFlix/actions/workflows/ci.yml/badge.svg)](https://github.com/ashmax77/VyroFlix/actions/workflows/ci.yml)
 ![Java 21](https://img.shields.io/badge/Java-21-orange.svg)
 ![Spring Boot 3.3.5](https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-Ready-blue.svg)
 
-A cloud-native, video-on-demand streaming platform built with a Spring Boot microservice backend and a Next.js/React frontend. Inspired by modern streaming products, VyroFlix demonstrates production-grade architecture with asynchronous event-driven workflows, HLS video delivery, and a polished consumer web experience.
+VyroFlix is an educational, cloud-native video-on-demand platform designed to demonstrate how a modern streaming service can be built with Spring Boot, domain-oriented microservices, Docker, Kafka, object storage, FFmpeg, HLS, and a Next.js frontend.
 
----
+The platform is designed for two primary users:
 
-## 📖 Table of Contents
+- **Viewers** browse a catalog, search for titles, watch content, save progress, and manage a watchlist.
+- **Administrators** manage catalog metadata, upload source videos, monitor encoding, and publish ready content.
 
-- [Overview](#overview)
-- [Core Features](#core-features)
+The repository is currently in its **foundation phase**. Shared security, storage, messaging, outbox, database, gateway, and local infrastructure foundations are in place. The frontend and most domain workflows are planned next.
+
+## Contents
+
+- [Product Overview](#product-overview)
+- [Current Status](#current-status)
 - [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
+- [Media Workflow](#media-workflow)
 - [Services](#services)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
+- [Technology](#technology)
+- [Local Development](#local-development)
 - [Documentation](#documentation)
 - [License](#license)
 
----
+## Product Overview
 
-## Overview
+VyroFlix separates application control from media delivery.
 
-VyroFlix is a full-stack video streaming platform that allows **viewers** to browse, search, and stream content with resume-playback support, and **administrators** to manage the content lifecycle from upload through transcoding to publication. All media is delivered via HLS through object storage/CDN — video bytes never travel through the application services.
+The Spring Boot backend handles authentication, authorization, catalog metadata, upload coordination, playback authorization, history, search, recommendations, and event processing. Video files are handled by S3-compatible object storage and a CDN so large media files do not pass through the API Gateway or application services.
 
-### Product Goals
+The intended product capabilities include:
 
-- Production-minded Spring Boot microservice architecture.
-- Asynchronous, event-driven workflows powered by Kafka.
-- Video delivery through object storage and CDN, not application servers.
-- Polished, responsive consumer web application.
-- Full local development environment via Docker Compose.
-- Incrementally deployable to Kubernetes or AWS.
-- Built-in testability, security, documentation, and observability.
+- Supabase Auth integration with JWT-based access control
+- Movie and series catalog management
+- Search across titles and metadata
+- Direct source-video uploads using pre-signed URLs
+- FFmpeg transcoding into multi-bitrate HLS
+- Secure playback using short-lived signed URLs
+- Watch progress, Continue Watching, and watchlists
+- Deterministic recommendations and trending rails
+- Local development through Docker Compose
+- Health checks, metrics, structured logging, and correlation IDs
 
----
+## Current Status
 
-## Core Features
+### Implemented foundation
 
-### 🎥 For Viewers
+- Maven multi-module Spring Boot backend
+- Spring Cloud Gateway routes and security configuration
+- Supabase-compatible JWT validation and USER/ADMIN role mapping
+- CORS and correlation ID filters
+- S3-compatible object storage abstraction for MinIO, Cloudflare R2, and Amazon S3
+- Pre-signed upload and download URL generation
+- Local Kafka and Upstash Kafka event-publishing abstractions
+- Standard versioned event envelopes
+- Transactional outbox persistence, relay, retries, and cleanup
+- Initial Flyway schemas for each domain
+- Docker Compose infrastructure for PostgreSQL, Redis, Kafka, MinIO, Prometheus, and Grafana
+- Unit tests for shared security, storage, messaging, and outbox components
 
-| Feature | Description |
-|---|---|
-| **Authentication** | Secure registration and login with JWT access tokens and refresh-token rotation. |
-| **Catalog Browsing** | Browse movies, series, genres, collections, and curated rails (Trending, Recently Added, etc.). |
-| **Search** | Full-text search across titles, genres, cast, and tags with filters and pagination. |
-| **HLS Video Playback** | Stream content via an in-browser HLS player with play/pause, seek, volume, fullscreen, and quality selection. |
-| **Watch Progress** | Automatic progress persistence with heartbeats every 15–30 seconds; resume playback across sessions. |
-| **Continue Watching** | Unfinished content surfaced in a dedicated rail, ordered by most recently watched. |
-| **Watchlist** | Personal watchlist to save titles for later viewing. |
-| **Recommendations** | Deterministic content rails including Trending, genre-based, and Similar Titles. |
-| **Subscriptions** | Plan-based entitlement (FREE, BASIC, PREMIUM) with mock billing in Phase 1. |
+### In progress
 
-### 🛠️ For Administrators
+The domain controllers, application services, Kafka consumers, FFmpeg worker, HLS player, and Next.js frontend are not yet implemented as complete user-facing workflows. The current codebase should therefore be viewed as a production-minded starting point rather than a finished streaming product.
 
-| Feature | Description |
-|---|---|
-| **Content Management** | Create, edit, publish, and unpublish movies and series with full metadata. |
-| **Media Ingestion** | Upload source video via pre-signed URLs; automatic transcoding to HLS multi-bitrate variants. |
-| **Transcode Monitoring** | Track processing state (QUEUED → PROCESSING → READY / FAILED) with retry support. |
-| **Publication Control** | Titles can only be published when all required media assets are in READY state. |
-| **Analytics** | Basic platform analytics and observability dashboards. |
+Run the backend verification with:
 
-### 📡 Platform & Operations
-
-- Health, readiness, and liveness probes on every service.
-- Prometheus metrics endpoint.
-- Structured JSON logging with correlation IDs.
-- Distributed trace propagation across gateway, services, and async events.
-- Dead-letter topic handling for failed event processing.
-
----
+```bash
+mvn clean test -f services/pom.xml
+```
 
 ## Architecture
 
-VyroFlix follows a **domain-oriented microservices** architecture. Each service owns its database schema and data. Services communicate synchronously via REST/JSON when an immediate response is required, and asynchronously through Kafka for state-change events using the outbox pattern.
+VyroFlix uses domain-oriented services. Each domain owns its data and communicates through clearly defined APIs or events.
 
+```text
+Viewer or administrator
+          |
+          v
+Next.js web application
+          |
+          | HTTPS / REST / JSON with JWT
+          v
+Spring Cloud Gateway
+  JWT validation, CORS, routing,
+  correlation IDs, access control
+          |
+          +------------------- REST --------------------+
+          |                                             |
+          v                                             v
+Identity   Content   Video   Streaming   History   Search   Recommendation
+ Service   Service  Service  Service     Service  Service     Service
+          |                                             |
+          +--------------- PostgreSQL -----------------+
+          |
+          +---------------- Kafka events ---------------+
+          |       video.uploaded.v1
+          |       video.encoded.v1
+          |       catalog.title.published.v1
+          |
+          +---------------- Redis cache ----------------+
+          |       playlist keys, entitlements, rate limits
+
+Admin browser
+     |
+     | pre-signed upload URL
+     v
+S3-compatible object storage
+  MinIO locally, R2/S3 in deployment
+     |
+     v
+Encoding-Service + FFmpeg
+     |
+     | HLS master playlist, variant playlists, segments
+     v
+Object storage -> CDN -> viewer browser
+
+Important: video bytes do not pass through Spring Boot, the API Gateway,
+Render, or Vercel.
 ```
-                         ┌──────────────────────┐
-                         │  Next.js Web Client   │
-                         │  React + TypeScript   │
-                         └──────────┬────────────┘
-                                    │
-                           HTTPS / REST / JSON
-                                    │
-                         ┌──────────▼────────────┐
-                         │ Spring Cloud Gateway   │
-                         │ Auth · CORS · Routing  │
-                         │ Rate Limiting          │
-                         └──────────┬────────────┘
-                                    │
-      ┌─────────────┬───────────────┼───────────────┬──────────────┐
-      │             │               │               │              │
- ┌────▼────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌────▼──────┐
- │Identity │  │ Catalog   │  │ Playback  │  │ History   │  │ Search    │
- │Service  │  │ Service   │  │ Service   │  │ Service   │  │ Service   │
- └────┬────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └────┬──────┘
-      │             │               │               │              │
-   Postgres      Postgres       Postgres         Postgres     Postgres/
-      │             │               │               │          OpenSearch
-      └─────────────┴───────────────┴───────────────┴──────────────┘
-                                    │
-                             ┌──────▼──────┐
-                             │    Kafka     │
-                             │  Event Bus   │
-                             └──────┬──────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    │                               │
-             ┌──────▼──────┐               ┌───────▼──────────┐
-             │   Media     │               │ Recommendation   │
-             │   Service   │               │ Service          │
-             └──────┬──────┘               └──────────────────┘
-                    │
-         ┌──────────▼───────────┐
-         │   Object Storage     │
-         │   MinIO / Amazon S3  │
-         └──────────┬───────────┘
-                    │
-         ┌──────────▼───────────┐
-         │   CDN / CloudFront   │
-         └──────────────────────┘
-```
 
-### Media Delivery Model
+### Communication model
 
-1. Browser requests playback authorization from the Playback Service.
-2. Playback Service returns a short-lived signed URL to the HLS master manifest.
-3. Browser player fetches the master playlist and segments directly from CDN/object storage.
-4. CDN handles repeated segment delivery and geographic scaling.
-5. Browser sends progress heartbeats to the History Service via the API Gateway.
-6. **Video bytes never travel through the API Gateway or Spring services.**
+- **REST/JSON** is used when a caller needs an immediate response, such as catalog reads, upload-intent creation, playback authorization, or progress updates.
+- **Kafka** is used for asynchronous state changes and long-running workflows, such as upload completion, encoding completion, catalog publication, viewing activity, search indexing, and recommendations.
+- **PostgreSQL** stores durable metadata owned by each domain.
+- **Redis** stores frequently accessed or short-lived data such as playlist keys, entitlement data, sessions, and rate-limit counters.
+- **Object storage and the CDN** deliver media directly to the browser.
 
----
+## Media Workflow
 
-## Tech Stack
+The intended upload-to-playback flow is:
 
-### Backend
+1. An administrator creates or selects a draft title.
+2. Video-Service creates an upload intent and returns a short-lived pre-signed URL.
+3. The browser uploads the raw video directly to MinIO, Cloudflare R2, or S3.
+4. Video-Service verifies the upload and publishes `video.uploaded.v1` through the outbox and Kafka.
+5. Encoding-Service consumes the event and runs FFmpeg.
+6. FFmpeg creates multiple HLS renditions, such as 1080p, 720p, and 480p.
+7. Encoding-Service uploads the master playlist, variant playlists, and segments to object storage.
+8. Encoding-Service publishes `video.encoded.v1` after verifying the output.
+9. Streaming-Service stores the master-playlist key in Redis and authorizes playback requests.
+10. The viewer requests a playback session with a valid JWT.
+11. Streaming-Service returns a short-lived signed URL for the HLS manifest.
+12. The browser player downloads HLS playlists and segments directly from object storage or the CDN.
 
-| Technology | Purpose |
-|---|---|
-| **Java 21** | Primary language |
-| **Spring Boot 3.x** | Service framework |
-| **Spring Cloud Gateway** | API gateway, edge routing, CORS, rate limiting |
-| **Spring Security** | Authentication and authorization (JWT) |
-| **Spring Data JPA** | Database access and ORM |
-| **PostgreSQL** | Primary relational database (one per service) |
-| **Redis** | Caching, session state, rate limiting |
-| **Apache Kafka** | Asynchronous event bus with outbox pattern |
-| **Flyway** | Database schema migrations |
-| **MinIO / Amazon S3** | Object storage for media assets |
-| **FFmpeg** | Local video transcoding to HLS |
-| **Testcontainers** | Integration testing with real infrastructure |
-| **OpenAPI / Swagger** | API documentation |
-| **Docker** | Containerization |
-
-### Frontend
-
-| Technology | Purpose |
-|---|---|
-| **Next.js** | React framework with SSR/SSG |
-| **React** | UI component library |
-| **TypeScript** | Type-safe JavaScript |
-
-### Infrastructure & Observability
-
-| Technology | Purpose |
-|---|---|
-| **Docker Compose** | Local development orchestration |
-| **Prometheus** | Metrics collection |
-| **Structured JSON Logging** | Centralized, searchable logs |
-| **Correlation ID Propagation** | Distributed request tracing |
-| **Vercel** | Frontend deployment (Hobby plan) |
-| **Render** | Backend deployment (Free plan) |
-| **Cloudflare R2 + CDN** | Object storage and media delivery |
-
----
+HLS allows a player to switch between video qualities as network conditions change. FFmpeg performs the conversion from one raw source file into the HLS playlists and segments required by the browser player.
 
 ## Services
 
-| Service | Responsibility | Database |
-|---|---|---|
-| **API Gateway** | Edge routing, CORS, JWT validation, rate limiting, correlation ID propagation | — |
-| **Identity Service** | Supabase Auth integration, internal user profiles, roles (USER/ADMIN) | PostgreSQL |
-| **Content-Service** | Movies, series, seasons, episodes, genres, cast, publication state, home-page rails | PostgreSQL |
-| **Video-Service** | Pre-signed upload URLs, upload intent tracking, raw video ingestion | PostgreSQL + Object Storage |
-| **Encoding-Service** | FFmpeg transcoding, multi-bitrate HLS packaging, encoding job management | PostgreSQL + Object Storage |
-| **Streaming-Service** | Playback session creation, entitlement checks, signed HLS URL generation | PostgreSQL + Redis |
-| **History Service** | Watch progress, continue watching, watchlist, completion tracking | PostgreSQL |
-| **Search Service** | Denormalized search index, full-text search, filters, lightweight search cards | PostgreSQL (Phase 1) → OpenSearch (Phase 2) |
-| **Recommendation Service** | Trending, genre-based, and similar-title rails; cached responses; graceful degradation | Redis + PostgreSQL |
+| Service | Responsibility |
+|---|---|
+| **API Gateway** | Public backend entry point, routing, JWT validation, CORS, correlation IDs, and access control. |
+| **Identity Service** | Internal profiles, roles, and device-session metadata integrated with Supabase Auth. |
+| **Content-Service** | Movies, series, seasons, episodes, genres, cast, artwork, collections, and publication state. |
+| **Video-Service** | Upload intents, pre-signed upload URLs, raw-upload metadata, and upload verification. |
+| **Encoding-Service** | Kafka-driven FFmpeg processing, HLS packaging, output verification, and encoding status. |
+| **Streaming-Service** | Playback authorization, entitlement checks, playback sessions, and signed HLS URLs. |
+| **History Service** | Progress heartbeats, Continue Watching, watchlists, completion records, and viewing events. |
+| **Search Service** | A denormalized search read model with PostgreSQL full-text search initially. |
+| **Recommendation Service** | Deterministic trending, genre-based, and similar-title recommendations with caching. |
 
----
+For low-cost deployment, the logical domain services may run in a combined Platform application while preserving their package and data ownership boundaries. Encoding remains suitable for a separate process because FFmpeg is CPU- and disk-intensive.
 
-## Project Structure
+## Technology
 
-```
-VyroFlix/
-├── apps/
-│   └── web/                          # Next.js App Router frontend
-├── services/                         # Spring Boot microservices (Maven multi-module)
-│   ├── pom.xml                       # Parent POM — dependency management
-│   ├── common/                       # Shared library module
-│   ├── platform/                     # Combined deployable module for Render
-│   ├── api-gateway/
-│   ├── identity-service/
-│   ├── content-service/
-│   ├── video-service/
-│   ├── encoding-service/
-│   ├── streaming-service/
-│   ├── history-service/
-│   ├── search-service/
-│   └── recommendation-service/
-├── infra/
-│   ├── docker/                       # Docker-related configs & init scripts
-│   ├── observability/                # Prometheus, Grafana configs
-│   ├── render/                       # Render deployment config
-│   └── vercel/                       # Vercel deployment config
-├── docs/
-│   ├── api/                          # OpenAPI specs
-│   └── events/                       # Event schema documentation
-├── tests/
-│   └── load/                         # k6 / Gatling load tests
-├── .env.example
-├── docker-compose.yml
-├── AGENTS.md                         # Agent implementation rules
-├── ARCHITECTURE.md                   # System architecture and design
-├── PROJECT_REQUIREMENTS.md           # Functional and non-functional requirements
-└── README.md                         # This file
-```
+### Application
 
----
+| Technology | Purpose |
+|---|---|
+| Java 21 | Backend language |
+| Spring Boot 3.3.5 | Backend application framework |
+| Spring Cloud Gateway | API Gateway and edge routing |
+| Spring Security OAuth2 Resource Server | JWT validation and authorization |
+| Spring Data JPA | Relational persistence |
+| Flyway | Database schema migrations |
+| Next.js, React, TypeScript | Planned web application |
+| hls.js | Planned browser HLS playback |
 
-## Getting Started
+### Data and integration
+
+| Technology | Purpose |
+|---|---|
+| PostgreSQL | Durable domain metadata |
+| Redis | Caching, rate limiting, entitlement and session data |
+| Apache Kafka | Local asynchronous event bus |
+| Upstash Kafka | Cloud-friendly Kafka REST integration |
+| MinIO | Local S3-compatible object storage |
+| Cloudflare R2 / Amazon S3 | Hosted object storage |
+| FFmpeg | Planned video transcoding and HLS packaging |
+
+### Operations
+
+| Technology | Purpose |
+|---|---|
+| Docker Compose | Local infrastructure orchestration |
+| Prometheus | Metrics collection |
+| Grafana | Metrics dashboards |
+| Vercel | Planned frontend deployment |
+| Render | Low-cost backend deployment option |
+
+## Local Development
 
 ### Prerequisites
 
-- **Java 21** (JDK)
-- **Node.js 18+** and **npm**
-- **Docker** and **Docker Compose**
-- **Git**
+- Java 21 JDK
+- Maven
+- Node.js and npm for the planned frontend
+- Docker Desktop with Docker Compose
+- Git
 
-### Local Development
+### Start local infrastructure
 
-1. **Clone the repository and set up environment**
+```bash
+docker compose up -d
+```
 
-   ```bash
-   git clone <repository-url>
-   cd VyroFlix
-   cp .env.example .env
-   ```
+The Compose environment provides:
 
-2. **Start infrastructure with Docker Compose**
+- PostgreSQL on port `5432`
+- Redis on port `6379`
+- Kafka on port `9092`
+- Kafka UI at `http://localhost:8090`
+- MinIO API on port `9000`
+- MinIO Console at `http://localhost:9001`
+- Prometheus at `http://localhost:9090`
+- Grafana at `http://localhost:3001`
 
-   ```bash
-   docker compose up -d
-   ```
+MinIO initializes local buckets for raw media and HLS content. These buckets provide an S3-compatible local alternative to Cloudflare R2.
 
-   This launches the zero-cost local baseline:
-   - **PostgreSQL 16**: Port `5432` (auto-provisions 8 service schemas)
-   - **Redis 7**: Port `6379`
-   - **Apache Kafka 3.7 (KRaft)**: Port `9092`
-   - **Kafka UI**: Port `8090` (`http://localhost:8090`)
-   - **MinIO S3**: Port `9000` (API), Port `9001` (`http://localhost:9001` Web Console)
-   - **Prometheus**: Port `9090` (`http://localhost:9090`)
-   - **Grafana**: Port `3001` (`http://localhost:3001`, user/pass: `admin`/`admin`)
+### Build and test the backend
 
-3. **Build & Test backend services**
+```bash
+mvn clean test -f services/pom.xml
+mvn clean package -DskipTests -f services/pom.xml
+```
 
-   ```bash
-   # Run unit and integration tests across all 12 modules
-   mvn clean test -f services/pom.xml
+### Run the backend locally
 
-   # Build executable JAR packages
-   mvn clean package -DskipTests -f services/pom.xml
-   ```
+Run the combined platform application:
 
-4. **Run backend applications (Local Profile)**
+```bash
+mvn spring-boot:run -pl platform -f services/pom.xml -Dspring-boot.run.profiles=local
+```
 
-   You can run services individually or launch the combined deployment:
+Run the API Gateway in a separate terminal:
 
-   ```bash
-   # Option A: Combined platform (all 7 domain services in 1 process)
-   mvn spring-boot:run -pl platform -f services/pom.xml -Dspring-boot.run.profiles=local
+```bash
+mvn spring-boot:run -pl api-gateway -f services/pom.xml -Dspring-boot.run.profiles=local
+```
 
-   # Start API Gateway (handles edge routing, JWT auth, and rate limiting)
-   mvn spring-boot:run -pl api-gateway -f services/pom.xml -Dspring-boot.run.profiles=local
-
-   # Or run any standalone microservice (e.g., content-service)
-   mvn spring-boot:run -pl content-service -f services/pom.xml -Dspring-boot.run.profiles=local
-   ```
-
-5. **Run the web frontend**
-
-   ```bash
-   cd apps/web
-   npm install
-   npm run dev
-   ```
-
-6. **Access the application**
-
-   - **Web Application**: `http://localhost:3000`
-   - **API Gateway**: `http://localhost:8080` (health: `http://localhost:8080/actuator/health`)
-   - **MinIO Console**: `http://localhost:9001` (`vyroflix` / `vyroflix123`)
-   - **Kafka UI**: `http://localhost:8090`
-   - **Grafana Dashboards**: `http://localhost:3001`
-
-
----
+The Gateway health endpoint is available at `http://localhost:8080/actuator/health`.
 
 ## Documentation
 
 | Document | Description |
 |---|---|
-| [PROJECT_REQUIREMENTS.md](PROJECT_REQUIREMENTS.md) | Product scope, functional requirements, quality requirements, flows, and Phase 1 acceptance criteria |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Microservices, service ownership, event contracts, API contracts, media-delivery flow, and failure behaviour |
-| [AGENTS.md](AGENTS.md) | Repository-wide implementation rules, coding standards, and delivery order |
-
----
+| [PROJECT_REQUIREMENTS.md](PROJECT_REQUIREMENTS.md) | Product scope, functional requirements, quality requirements, and acceptance criteria. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Service boundaries, data ownership, API contracts, events, media flow, and deployment strategy. |
+| [AGENTS.md](AGENTS.md) | Repository implementation rules and engineering constraints. |
 
 ## License
 
