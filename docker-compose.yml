@@ -140,9 +140,12 @@ services:
       /usr/bin/mc mb --ignore-existing local/vyroflix-hls-media;
       /usr/bin/mc anonymous set download local/vyroflix-content;
       /usr/bin/mc anonymous set download local/vyroflix-hls-media;
+      if [ -d /sample-media ]; then /usr/bin/mc cp -r /sample-media/ local/vyroflix-content/ || true; fi;
       echo 'VyroFlix MinIO buckets ready!';
       exit 0;
       "
+    volumes:
+      - ./infra/docker/sample-media:/sample-media:ro
     networks:
       - vyroflix-network
 
