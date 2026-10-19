@@ -3,6 +3,7 @@ package com.vyroflix.common.security;
 import com.vyroflix.common.util.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -32,7 +33,7 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
     private static final String AUTHENTICATED_ROLE = "authenticated";
 
     @Override
-    public AbstractAuthenticationToken convert(Jwt jwt) {
+    public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
         UserPrincipal principal = extractPrincipal(jwt);
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
 
