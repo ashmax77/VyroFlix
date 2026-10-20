@@ -209,8 +209,8 @@ public class EncodingService {
     }
 
     private void uploadHlsPackage(String bucket, String prefix, Path outputDir) throws Exception {
-        if (storageClient == null) {
-            log.debug("No storageClient configured; skipping remote upload for [{}]", prefix);
+        if (storageClient == null || !Files.exists(outputDir)) {
+            log.debug("No storageClient configured or outputDir does not exist; skipping remote upload for [{}]", prefix);
             return;
         }
 
