@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * Consumes video.encoded.v1 events and marks media asset references as READY in the catalog.
  */
 @Slf4j
-@Component
+@Component("contentVideoEncodedConsumer")
 @RequiredArgsConstructor
 public class VideoEncodedConsumer implements EventConsumer<VideoEncodedEventPayload> {
 

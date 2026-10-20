@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * Consumes video.encoded.v1 events and caches the master playlist key in Redis for instant playback resolution.
  */
 @Slf4j
-@Component
+@Component("streamingVideoEncodedConsumer")
 @RequiredArgsConstructor
 public class VideoEncodedConsumer implements EventConsumer<VideoEncodedEventPayload> {
 

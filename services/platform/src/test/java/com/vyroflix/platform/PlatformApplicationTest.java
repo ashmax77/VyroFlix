@@ -38,6 +38,12 @@ class PlatformApplicationTest {
     @MockBean
     private UploadService uploadService;
 
+    @MockBean
+    private com.vyroflix.content.consumer.VideoEncodedConsumer contentVideoEncodedConsumer;
+
+    @MockBean
+    private com.vyroflix.streaming.consumer.VideoEncodedConsumer streamingVideoEncodedConsumer;
+
     @Test
     @DisplayName("Combined platform application context loads successfully with all aggregated domain services")
     void contextLoads() {
