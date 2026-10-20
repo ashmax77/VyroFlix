@@ -129,6 +129,13 @@ public class UploadService {
         return UploadIntentResponse.from(intent);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<UploadIntentResponse> getIntentsByContentId(UUID contentId) {
+        return uploadIntentRepository.findByContentId(contentId).stream()
+                .map(UploadIntentResponse::from)
+                .toList();
+    }
+
     private String generatePresignedUploadUrl(String s3Key, String contentType, Duration ttl) {
         if (storageClient != null) {
             try {
