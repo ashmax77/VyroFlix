@@ -7,8 +7,8 @@ import com.vyroflix.common.outbox.OutboxService;
 import com.vyroflix.common.util.Constants;
 import com.vyroflix.content.dto.*;
 import com.vyroflix.content.entity.*;
-import com.vyroflix.content.event.TitlePublishedPayload;
-import com.vyroflix.content.event.TitleUnpublishedPayload;
+import com.vyroflix.common.event.TitlePublishedEventPayload;
+import com.vyroflix.common.event.TitleUnpublishedEventPayload;
 import com.vyroflix.content.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -299,13 +299,16 @@ public class AdminCatalogService {
                 ? title.getGenres().stream().map(Genre::getSlug).collect(Collectors.toSet())
                 : Set.of();
 
-        TitlePublishedPayload payload = TitlePublishedPayload.builder()
+        TitlePublishedEventPayload payload = TitlePublishedEventPayload.builder()
                 .titleId(title.getId())
                 .title(title.getTitle())
-                .type(title.getType())
+                .type(title.getType() != null ? title.getType().name() : "MOVIE")
+                .synopsis(title.getSynopsis())
                 .genreSlugs(genreSlugs)
                 .releaseYear(title.getReleaseYear())
                 .maturityRating(title.getMaturityRating())
+                .posterUrl(title.getPosterUrl())
+                .backdropUrl(title.getBannerUrl())
                 .publishedAt(Instant.now())
                 .build();
 
@@ -321,9 +324,10 @@ public class AdminCatalogService {
         OutboxService outboxService = outboxServiceProvider.getIfAvailable();
         if (outboxService == null) return;
 
-        TitleUnpublishedPayload payload = TitleUnpublishedPayload.builder()
+        TitleUnpublishedEventPayload payload = TitleUnpublishedEventPayload.builder()
                 .titleId(title.getId())
                 .unpublishedAt(Instant.now())
+                .reason("UNPUBLISHED_BY_ADMIN")
                 .build();
 
         outboxService.save(EventEnvelope.of(
