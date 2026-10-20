@@ -16,6 +16,9 @@ class ContentServiceApplicationTest {
     @MockBean
     private com.vyroflix.content.service.CatalogService catalogService;
 
+    @MockBean
+    private com.vyroflix.content.consumer.VideoEncodedConsumer videoEncodedConsumer;
+
     @Test
     void contextLoads() {
     }

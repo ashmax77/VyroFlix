@@ -205,6 +205,29 @@ public class AdminCatalogService {
         return toTitleResponse(saved);
     }
 
+    /**
+     * Updates or creates a READY media asset reference when video.encoded.v1 is received.
+     */
+    @Transactional
+    public void updateMediaAssetReady(UUID targetId, String masterPlaylistUrl, Integer durationSeconds) {
+        log.info("Updating media asset reference to READY for targetId [{}] masterPlaylistUrl [{}]",
+                targetId, masterPlaylistUrl);
+
+        MediaAssetReference asset = mediaAssetReferenceRepository
+                .findByTargetIdAndAssetType(targetId, AssetType.MAIN_VIDEO)
+                .orElseGet(() -> MediaAssetReference.builder()
+                        .targetId(targetId)
+                        .assetType(AssetType.MAIN_VIDEO)
+                        .build());
+
+        asset.setStatus(AssetStatus.READY);
+        asset.setMasterPlaylistUrl(masterPlaylistUrl);
+        asset.setDurationSeconds(durationSeconds);
+        mediaAssetReferenceRepository.save(asset);
+
+        log.info("MediaAssetReference updated to READY for targetId [{}]", targetId);
+    }
+
     @Transactional(readOnly = true)
     public TitleResponse getTitle(UUID id) {
         Title title = titleRepository.findById(id)
