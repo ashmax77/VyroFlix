@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Bell, User, Play, Bookmark } from 'lucide-react';
 
 export default function Navbar() {
@@ -10,6 +10,16 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push('/search');
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -68,7 +78,7 @@ export default function Navbar() {
           {/* Search Bar */}
           <div className="relative flex items-center">
             {searchOpen ? (
-              <div className="flex items-center bg-surface-elevated/90 border border-border rounded-full px-3 py-1.5 focus-within:border-accent-cyan transition-all">
+              <form onSubmit={handleSearchSubmit} className="flex items-center bg-surface-elevated/90 border border-border rounded-full px-3 py-1.5 focus-within:border-accent-cyan transition-all">
                 <Search className="w-4 h-4 text-text-muted mr-2" />
                 <input
                   type="text"
@@ -79,10 +89,15 @@ export default function Navbar() {
                   autoFocus
                   onBlur={() => !searchQuery && setSearchOpen(false)}
                 />
-              </div>
+              </form>
             ) : (
               <button
-                onClick={() => setSearchOpen(true)}
+                onClick={() => {
+                  setSearchOpen(true);
+                  if (pathname !== '/search') {
+                    router.push('/search');
+                  }
+                }}
                 className="text-text-secondary hover:text-white transition-colors p-1"
                 aria-label="Search"
               >

@@ -126,3 +126,25 @@ export interface EncodingJob {
   renditions?: HlsRendition[];
 }
 
+export interface SearchCard {
+  id: string;
+  title: string;
+  type: TitleType;
+  synopsis: string;
+  releaseYear: number;
+  maturityRating: string;
+  genres: string[];
+  castMembers: string[];
+  directors: string[];
+  posterUrl: string;
+}
+
+export interface SearchResultPage {
+  content: SearchCard[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+

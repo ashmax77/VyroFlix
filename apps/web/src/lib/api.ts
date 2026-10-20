@@ -1,4 +1,4 @@
-import { HomeFeed, Title, ViewingProgress, WatchlistEntry, PlaybackSession, Genre, UploadIntentResponse, EncodingJob, EncodingStatus } from '../types';
+import { HomeFeed, Title, ViewingProgress, WatchlistEntry, PlaybackSession, Genre, UploadIntentResponse, EncodingJob, EncodingStatus, SearchResultPage, SearchCard } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -463,5 +463,82 @@ export async function retryEncodingJob(jobId: string): Promise<EncodingJob> {
   }
 
   return res.json();
+}
+
+/**
+ * Performs full-text search with optional type filtering and pagination.
+ */
+export async function searchTitles(query?: string, type?: string, page = 0, size = 20): Promise<SearchResultPage> {
+  try {
+    const params = new URLSearchParams();
+    if (query?.trim()) params.append('q', query.trim());
+    if (type?.trim()) params.append('type', type.trim());
+    params.append('page', page.toString());
+    params.append('size', size.toString());
+
+    const res = await fetch(`${API_BASE}/search?${params.toString()}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn('Search service call failed, falling back to local dataset:', e);
+  }
+
+  // Graceful fallback over mock titles
+  let filtered = MOCK_TITLES;
+  if (type) {
+    filtered = filtered.filter(t => t.type === type.toUpperCase());
+  }
+  if (query?.trim()) {
+    const q = query.trim().toLowerCase();
+    filtered = filtered.filter(t => 
+      t.title.toLowerCase().includes(q) ||
+      t.synopsis.toLowerCase().includes(q) ||
+      t.tags?.some(tag => tag.toLowerCase().includes(q))
+    );
+  }
+
+  const start = page * size;
+  const paged = filtered.slice(start, start + size);
+  return {
+    content: paged.map(t => ({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      synopsis: t.synopsis,
+      releaseYear: t.releaseYear,
+      maturityRating: t.maturityRating,
+      genres: t.tags || [],
+      castMembers: [],
+      directors: [],
+      posterUrl: t.posterUrl,
+    })),
+    page,
+    size,
+    totalElements: filtered.length,
+    totalPages: Math.max(1, Math.ceil(filtered.length / size)),
+    hasNext: start + size < filtered.length,
+  };
+}
+
+/**
+ * Fetches instant prefix suggestions for the search auto-complete dropdown.
+ */
+export async function getSearchSuggestions(query: string, limit = 5): Promise<string[]> {
+  if (!query?.trim()) return [];
+  try {
+    const res = await fetch(`${API_BASE}/search/suggestions?q=${encodeURIComponent(query.trim())}&limit=${limit}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn('Search suggestions failed, falling back to local titles:', e);
+  }
+
+  const q = query.trim().toLowerCase();
+  return MOCK_TITLES
+    .filter(t => t.title.toLowerCase().includes(q))
+    .slice(0, limit)
+    .map(t => t.title);
 }
 
