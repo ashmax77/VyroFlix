@@ -542,3 +542,68 @@ export async function getSearchSuggestions(query: string, limit = 5): Promise<st
     .map(t => t.title);
 }
 
+/**
+ * Fetches dynamic trending rail from recommendation-service with fail-open fallback.
+ */
+export async function fetchTrendingRail(limit = 10): Promise<Title[]> {
+  try {
+    const res = await fetch(`${API_BASE}/recommendations/trending?limit=${limit}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.items && data.items.length > 0) {
+        return data.items.map((item: any) => ({
+          id: item.titleId,
+          type: item.type || 'MOVIE',
+          title: item.title,
+          synopsis: item.reason || '',
+          releaseYear: item.releaseYear || 2024,
+          maturityRating: item.maturityRating || 'PG-13',
+          durationMinutes: 120,
+          posterUrl: item.posterUrl || MOCK_TITLES[0].posterUrl,
+          backdropUrl: item.posterUrl || MOCK_TITLES[0].backdropUrl,
+          publicationState: 'PUBLISHED',
+          tags: item.genres || [],
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Trending rail fetch failed, falling back to mock dataset:', e);
+  }
+  return MOCK_TITLES.filter(t => t.type === 'MOVIE');
+}
+
+/**
+ * Fetches personalized recommendations for the current user with fail-open fallback.
+ */
+export async function fetchPersonalRecommendations(limit = 10): Promise<Title[]> {
+  try {
+    const res = await fetch(`${API_BASE}/recommendations/personal?limit=${limit}`, {
+      headers: {
+        'X-User-Id': getStoredUserId(),
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.items && data.items.length > 0) {
+        return data.items.map((item: any) => ({
+          id: item.titleId,
+          type: item.type || 'MOVIE',
+          title: item.title,
+          synopsis: item.reason || '',
+          releaseYear: item.releaseYear || 2024,
+          maturityRating: item.maturityRating || 'PG-13',
+          durationMinutes: 120,
+          posterUrl: item.posterUrl || MOCK_TITLES[0].posterUrl,
+          backdropUrl: item.posterUrl || MOCK_TITLES[0].backdropUrl,
+          publicationState: 'PUBLISHED',
+          tags: item.genres || [],
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Personal recommendations fetch failed, falling back to mock dataset:', e);
+  }
+  return MOCK_TITLES;
+}
+
+

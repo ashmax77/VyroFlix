@@ -3,23 +3,29 @@
 import React, { useEffect, useState } from 'react';
 import HeroBillboard from '../../components/HeroBillboard';
 import ContentRail from '../../components/ContentRail';
-import { fetchHomeFeed, fetchContinueWatching } from '../../lib/api';
-import { HomeFeed, ViewingProgress } from '../../types';
+import { fetchHomeFeed, fetchContinueWatching, fetchTrendingRail, fetchPersonalRecommendations } from '../../lib/api';
+import { HomeFeed, ViewingProgress, Title } from '../../types';
 import { Loader2 } from 'lucide-react';
 
 export default function BrowsePage() {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [continueWatching, setContinueWatching] = useState<ViewingProgress[]>([]);
+  const [trending, setTrending] = useState<Title[]>([]);
+  const [recommended, setRecommended] = useState<Title[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [feedData, progressData] = await Promise.all([
+      const [feedData, progressData, trendingData, recData] = await Promise.all([
         fetchHomeFeed(),
         fetchContinueWatching(),
+        fetchTrendingRail(10),
+        fetchPersonalRecommendations(10),
       ]);
       setFeed(feedData);
       setContinueWatching(progressData);
+      setTrending(trendingData);
+      setRecommended(recData);
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,25 @@ export default function BrowsePage() {
           />
         )}
 
-        {/* Dynamic Aggregated Rails */}
+        {/* Dynamic Trending Rail from Recommendation-Service */}
+        {trending.length > 0 && (
+          <ContentRail
+            title="Trending on VyroFlix"
+            items={trending}
+            onWatchlistChanged={loadData}
+          />
+        )}
+
+        {/* Personalized Recommendations Rail */}
+        {recommended.length > 0 && (
+          <ContentRail
+            title="Recommended for You"
+            items={recommended}
+            onWatchlistChanged={loadData}
+          />
+        )}
+
+        {/* Dynamic Aggregated Catalog Rails */}
         {feed.rails.map((rail) => (
           <ContentRail
             key={rail.id}
