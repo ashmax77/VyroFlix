@@ -3,6 +3,7 @@ package com.vyroflix.common.messaging.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyroflix.common.messaging.EventPublisher;
 import com.vyroflix.common.messaging.MessagingProperties;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,9 +11,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
 /**
- * Spring configuration for Kafka-based event publishing.
+ * Spring configuration for Kafka-based event publishing, retries, and dead-letter handling.
  *
  * <p>Activated when {@code vyroflix.messaging.type=kafka} (the default).</p>
  */
@@ -26,5 +31,21 @@ public class KafkaConfig {
     @ConditionalOnMissingBean(EventPublisher.class)
     public EventPublisher kafkaEventPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         return new KafkaEventPublisher(kafkaTemplate, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(CommonErrorHandler.class)
+    public CommonErrorHandler kafkaCommonErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition())
+        );
+
+        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(3);
+        backOff.setInitialInterval(1000L);
+        backOff.setMultiplier(2.0);
+        backOff.setMaxInterval(10000L);
+
+        return new DefaultErrorHandler(recoverer, backOff);
     }
 }
