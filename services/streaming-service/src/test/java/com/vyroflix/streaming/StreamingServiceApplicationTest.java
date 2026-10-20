@@ -13,6 +13,9 @@ class StreamingServiceApplicationTest {
     @MockBean
     private StreamingService streamingService;
 
+    @MockBean
+    private com.vyroflix.streaming.consumer.VideoEncodedConsumer videoEncodedConsumer;
+
     @Test
     void contextLoads() {
     }

@@ -123,6 +123,21 @@ public class StreamingService {
         return playlistKey;
     }
 
+    /**
+     * Caches the master playlist key in Redis upon receiving video.encoded.v1.
+     */
+    public void cacheMasterPlaylistKey(UUID contentId, String masterPlaylistKey) {
+        if (redisTemplate != null && contentId != null && masterPlaylistKey != null) {
+            String cacheKey = REDIS_PLAYLIST_KEY_PREFIX + contentId;
+            try {
+                redisTemplate.opsForValue().set(cacheKey, masterPlaylistKey, 24, TimeUnit.HOURS);
+                log.info("Cached master playlist key in Redis for content [{}]: [{}]", contentId, masterPlaylistKey);
+            } catch (Exception e) {
+                log.warn("Failed to cache master playlist key in Redis for [{}]: {}", contentId, e.getMessage());
+            }
+        }
+    }
+
     private String generateManifestUrl(String playlistKey, Duration expiry) {
         if (storageClient != null) {
             try {
