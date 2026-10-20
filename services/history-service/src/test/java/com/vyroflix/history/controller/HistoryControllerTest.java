@@ -1,0 +1,218 @@
+package com.vyroflix.history.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vyroflix.common.util.Constants;
+import com.vyroflix.history.dto.*;
+import com.vyroflix.history.entity.TargetType;
+import com.vyroflix.history.service.HistoryService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(controllers = HistoryController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class HistoryControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private HistoryService historyService;
+
+    @Test
+    @DisplayName("PUT /api/v1/history/progress returns 200 OK with updated progress")
+    void recordProgress_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+
+        RecordProgressRequest request = RecordProgressRequest.builder()
+                .contentId(contentId)
+                .targetType(TargetType.MOVIE)
+                .positionSeconds(450)
+                .durationSeconds(1000)
+                .build();
+
+        ViewingProgressResponse response = ViewingProgressResponse.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .contentId(contentId)
+                .targetType(TargetType.MOVIE)
+                .positionSeconds(450)
+                .durationSeconds(1000)
+                .progressPercent(45.0)
+                .completed(false)
+                .lastWatchedAt(Instant.now())
+                .build();
+
+        when(historyService.recordProgress(eq(userId), any(RecordProgressRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/v1/history/progress")
+                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contentId").value(contentId.toString()))
+                .andExpect(jsonPath("$.positionSeconds").value(450))
+                .andExpect(jsonPath("$.progressPercent").value(45.0))
+                .andExpect(jsonPath("$.completed").value(false));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/history/progress without user authentication returns 401")
+    void recordProgress_Unauthorized() throws Exception {
+        RecordProgressRequest request = RecordProgressRequest.builder()
+                .contentId(UUID.randomUUID())
+                .targetType(TargetType.MOVIE)
+                .positionSeconds(100)
+                .durationSeconds(1000)
+                .build();
+
+        mockMvc.perform(put("/api/v1/history/progress")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/history/progress with invalid validation returns 400")
+    void recordProgress_ValidationFailure() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        RecordProgressRequest request = RecordProgressRequest.builder()
+                .contentId(null) // missing contentId
+                .targetType(TargetType.MOVIE)
+                .positionSeconds(-10) // invalid negative
+                .durationSeconds(0) // invalid <= 0
+                .build();
+
+        mockMvc.perform(put("/api/v1/history/progress")
+                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/history/continue-watching returns 200 OK with progress list")
+    void getContinueWatching_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+
+        ViewingProgressResponse response = ViewingProgressResponse.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .contentId(contentId)
+                .targetType(TargetType.MOVIE)
+                .positionSeconds(300)
+                .durationSeconds(900)
+                .progressPercent(33.3)
+                .completed(false)
+                .lastWatchedAt(Instant.now())
+                .build();
+
+        when(historyService.getContinueWatching(eq(userId), eq(10))).thenReturn(List.of(response));
+
+        mockMvc.perform(get("/api/v1/history/continue-watching")
+                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].contentId").value(contentId.toString()))
+                .andExpect(jsonPath("$[0].positionSeconds").value(300));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/history/watchlist returns 200 OK with watchlist entries")
+    void getWatchlist_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID titleId = UUID.randomUUID();
+
+        WatchlistEntryResponse response = WatchlistEntryResponse.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .titleId(titleId)
+                .createdAt(Instant.now())
+                .build();
+
+        when(historyService.getWatchlist(eq(userId), eq(0), eq(20))).thenReturn(List.of(response));
+
+        mockMvc.perform(get("/api/v1/history/watchlist")
+                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].titleId").value(titleId.toString()));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/history/watchlist returns 201 Created")
+    void addToWatchlist_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID titleId = UUID.randomUUID();
+        AddToWatchlistRequest request = new AddToWatchlistRequest(titleId);
+
+        WatchlistEntryResponse response = WatchlistEntryResponse.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .titleId(titleId)
+                .createdAt(Instant.now())
+                .build();
+
+        when(historyService.addToWatchlist(eq(userId), any(AddToWatchlistRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/history/watchlist")
+                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.titleId").value(titleId.toString()));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/history/watchlist/{titleId} returns 204 No Content")
+    void removeFromWatchlist_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID titleId = UUID.randomUUID();
+
+        doNothing().when(historyService).removeFromWatchlist(userId, titleId);
+
+        mockMvc.perform(delete("/api/v1/history/watchlist/{titleId}", titleId)
+                        .header(Constants.HEADER_USER_ID, userId.toString()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/history/watchlist/{titleId}/check returns 200 with status")
+    void checkWatchlist_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID titleId = UUID.randomUUID();
+
+        WatchlistStatusResponse response = new WatchlistStatusResponse(titleId, true);
+        when(historyService.isInWatchlist(userId, titleId)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/history/watchlist/{titleId}/check", titleId)
+                        .header(Constants.HEADER_USER_ID, userId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.titleId").value(titleId.toString()))
+                .andExpect(jsonPath("$.inWatchlist").value(true));
+    }
+}
