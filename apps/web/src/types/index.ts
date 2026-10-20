@@ -80,3 +80,49 @@ export interface PlaybackSession {
   expiresAt: string;
   resumePositionSeconds: number;
 }
+
+export type UploadStatus = 'PENDING' | 'UPLOADED' | 'FAILED';
+export type EncodingStatus = 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED';
+
+export interface UploadIntentResponse {
+  id: string;
+  contentId: string;
+  targetType: 'MOVIE' | 'EPISODE';
+  filename: string;
+  contentType: string;
+  fileSizeBytes: number;
+  s3Bucket: string;
+  s3Key: string;
+  status: UploadStatus;
+  uploadUrl: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface HlsRendition {
+  id: string;
+  resolution: string;
+  bitrate: number;
+  width: number;
+  height: number;
+  playlistKey: string;
+}
+
+export interface EncodingJob {
+  id: string;
+  uploadIntentId: string;
+  contentId: string;
+  rawS3Bucket: string;
+  rawS3Key: string;
+  outputS3Bucket: string;
+  outputS3Prefix: string;
+  masterPlaylistKey?: string;
+  status: EncodingStatus;
+  durationSeconds?: number;
+  errorMessage?: string;
+  retryCount: number;
+  createdAt: string;
+  updatedAt: string;
+  renditions?: HlsRendition[];
+}
+

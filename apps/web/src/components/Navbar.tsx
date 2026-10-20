@@ -24,6 +24,7 @@ export default function Navbar() {
     { label: 'Movies', href: '/browse?type=MOVIE' },
     { label: 'Series', href: '/browse?type=SERIES' },
     { label: 'My List', href: '/my-list' },
+    { label: 'Studio', href: '/admin' },
   ];
 
   return (

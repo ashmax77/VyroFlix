@@ -1,4 +1,4 @@
-import { HomeFeed, Title, ViewingProgress, WatchlistEntry, PlaybackSession, Genre } from '../types';
+import { HomeFeed, Title, ViewingProgress, WatchlistEntry, PlaybackSession, Genre, UploadIntentResponse, EncodingJob, EncodingStatus } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -344,3 +344,124 @@ export function getStoredUserId(): string {
   }
   return '00000000-0000-0000-0000-000000000001';
 }
+
+/**
+ * Creates an upload intent for a movie or episode asset.
+ */
+export async function createUploadIntent(data: {
+  contentId: string;
+  targetType: 'MOVIE' | 'EPISODE';
+  filename: string;
+  contentType: string;
+  fileSizeBytes: number;
+}): Promise<UploadIntentResponse> {
+  const userId = getStoredUserId();
+  const res = await fetch(`${API_BASE}/videos/upload-intents`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Id': userId,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to create upload intent: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Uploads raw media file DIRECTLY to S3 / Cloudflare R2 / MinIO pre-signed URL.
+ * Video bytes NEVER pass through Spring Boot, Render, Vercel, or the API Gateway.
+ */
+export function uploadFileDirectToStorage(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Direct storage upload failed with status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error during direct storage upload'));
+    };
+
+    xhr.send(file);
+  });
+}
+
+/**
+ * Notifies the backend that direct S3 upload has finished, verifying the object
+ * and initiating background transcoding.
+ */
+export async function completeUploadIntent(intentId: string): Promise<UploadIntentResponse> {
+  const res = await fetch(`${API_BASE}/videos/upload-intents/${intentId}/complete`, {
+    method: 'PUT',
+    headers: {
+      'X-User-Id': getStoredUserId(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to complete upload intent: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Fetches encoding jobs from the encoding service with optional status filter.
+ */
+export async function getEncodingJobs(status?: EncodingStatus): Promise<EncodingJob[]> {
+  try {
+    const query = status ? `?status=${status}` : '';
+    const res = await fetch(`${API_BASE}/encoding/jobs${query}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.content || data;
+    }
+  } catch (e) {
+    console.warn('Could not fetch encoding jobs, returning empty array:', e);
+  }
+  return [];
+}
+
+/**
+ * Requests retry of a failed or stuck encoding job.
+ */
+export async function retryEncodingJob(jobId: string): Promise<EncodingJob> {
+  const res = await fetch(`${API_BASE}/encoding/jobs/${jobId}/retry`, {
+    method: 'POST',
+    headers: {
+      'X-User-Id': getStoredUserId(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to retry encoding job: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
