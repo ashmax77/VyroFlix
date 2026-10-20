@@ -3,6 +3,7 @@ package com.vyroflix.video.service;
 import com.vyroflix.common.error.ApiException;
 import com.vyroflix.common.error.ErrorCode;
 import com.vyroflix.common.event.EventEnvelope;
+import com.vyroflix.common.event.VideoUploadedEventPayload;
 import com.vyroflix.common.outbox.OutboxService;
 import com.vyroflix.common.storage.ObjectStorageClient;
 import com.vyroflix.common.util.Constants;
@@ -10,7 +11,6 @@ import com.vyroflix.video.dto.CreateUploadIntentRequest;
 import com.vyroflix.video.dto.UploadIntentResponse;
 import com.vyroflix.video.entity.UploadIntent;
 import com.vyroflix.video.entity.UploadStatus;
-import com.vyroflix.video.event.VideoUploadedPayload;
 import com.vyroflix.video.repository.UploadIntentRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -154,10 +154,10 @@ public class UploadService {
             return;
         }
 
-        VideoUploadedPayload payload = VideoUploadedPayload.builder()
+        VideoUploadedEventPayload payload = VideoUploadedEventPayload.builder()
                 .uploadIntentId(intent.getId())
                 .contentId(intent.getContentId())
-                .targetType(intent.getTargetType())
+                .targetType(intent.getTargetType().name())
                 .s3Bucket(intent.getS3Bucket())
                 .s3Key(intent.getS3Key())
                 .filename(intent.getFilename())

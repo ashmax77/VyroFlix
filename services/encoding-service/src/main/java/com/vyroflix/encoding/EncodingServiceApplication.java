@@ -3,7 +3,7 @@ package com.vyroflix.encoding;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.vyroflix.encoding", "com.vyroflix.common"})
 public class EncodingServiceApplication {
 
     public static void main(String[] args) {

@@ -1,6 +1,5 @@
-package com.vyroflix.video.event;
+package com.vyroflix.common.event;
 
-import com.vyroflix.video.entity.TargetType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,15 +8,18 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Payload for {@code video.uploaded.v1} event.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class VideoUploadedPayload {
+public class VideoUploadedEventPayload {
 
     private UUID uploadIntentId;
     private UUID contentId;
-    private TargetType targetType;
+    private String targetType;
     private String s3Bucket;
     private String s3Key;
     private String filename;
