@@ -13,7 +13,7 @@ services:
     container_name: vyroflix-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vyroflix}
       POSTGRES_USER: ${POSTGRES_USER:-vyroflix}
