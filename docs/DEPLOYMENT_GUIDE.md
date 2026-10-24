@@ -28,10 +28,10 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
    - Copy the entire SQL contents, paste into the Supabase SQL editor, and click **Run**.
    - This creates all 8 microservice schemas: `identity`, `content`, `video`, `encoding`, `streaming`, `history`, `search`, `recommendation`.
 5. Under **Project Settings -> Database**:
-   - Copy the **Connection String (URI)** or Host, Port (`5432`), User (`postgres`), and Password.
-   - Example URI format:
+   - Copy the **Connection String** from the **Connect** dialog. Prefer the **Session pooler** string (IPv4-compatible); the direct `db.<PROJECT_REF>.supabase.co` host is IPv6-only and may not be reachable from Render.
+   - Example JDBC URL (the username is `postgres.<PROJECT_REF>` when using the pooler):
      ```text
-     jdbc:postgresql://db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require
+     jdbc:postgresql://aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
      ```
 6. Under **Project Settings -> API**:
    - Copy `Project URL` (e.g., `https://xyz.supabase.co`).
@@ -49,10 +49,11 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
 3. **Create Kafka Cluster**:
    - Name: `vyroflix-kafka`.
    - Cluster Type: Free Serverless.
-   - Create Topics:
+   - Create Topics (full list and payloads: [`events/EVENT_CATALOG.md`](events/EVENT_CATALOG.md)):
      * `video.uploaded.v1`
      * `video.encoded.v1`
      * `catalog.title.published.v1`
+     * `catalog.title.unpublished.v1`
    - Copy the Bootstrap Server endpoint and SASL credentials (SCRAM-SHA-256).
 
 ---
@@ -78,13 +79,12 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
 4. Render automatically detects [`render.yaml`](../render.yaml).
 5. In the Render prompt, fill in your environment secrets from Steps 1–3:
    * `SPRING_DATASOURCE_URL`: your Supabase JDBC URL (`jdbc:postgresql://...`).
-   * `SPRING_DATASOURCE_PASSWORD`: your Supabase database password.
-   * `UPSTASH_REDIS_URL`: your Upstash Redis connection string.
-   * `KAFKA_BOOTSTRAP_SERVERS`: your Upstash Kafka endpoint.
-   * `KAFKA_SASL_JAAS_CONFIG`: your Upstash SASL JAAS config string.
-   * `CLOUDFLARE_R2_ENDPOINT`: your Cloudflare R2 endpoint.
-   * `CLOUDFLARE_R2_ACCESS_KEY_ID`: your R2 access key.
-   * `CLOUDFLARE_R2_SECRET_ACCESS_KEY`: your R2 secret key.
+   * `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`: your Supabase database credentials.
+   * `SUPABASE_URL`: your Supabase project URL (used to derive the JWKS URI and issuer for JWT validation).
+   * `UPSTASH_REDIS_URL`: your Upstash Redis connection string (`rediss://...`).
+   * `KAFKA_BOOTSTRAP_SERVERS` and `KAFKA_SASL_JAAS_CONFIG`: your Kafka endpoint and SASL credentials.
+   * `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`: your Cloudflare R2 endpoint and API token.
+   * See [`.env.example`](../.env.example) section 3 for the complete list.
 6. Click **Apply**.
 7. Render will build the multi-stage Docker container and start `vyroflix-backend`.
 8. Once deployed, note your public Render URL (e.g. `https://vyroflix-backend.onrender.com`).
@@ -99,9 +99,8 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
 3. Select the `VyroFlix` repository.
 4. Set **Root Directory** to `apps/web`.
 5. Under **Environment Variables**, add:
-   * `NEXT_PUBLIC_API_BASE_URL`: your Render backend URL (e.g. `https://vyroflix-backend.onrender.com`).
-   * `NEXT_PUBLIC_SUPABASE_URL`: your Supabase project URL (`https://xyz.supabase.co`).
-   * `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your Supabase public anon key.
+   * `NEXT_PUBLIC_GATEWAY_URL`: your Render backend URL (e.g. `https://vyroflix-backend.onrender.com`). `next.config.mjs` proxies `/api/v1/**` to it.
+   * `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your Supabase project URL and public anon key (reserved for the Supabase Auth integration).
 6. Click **Deploy**.
 7. Vercel builds the Next.js App Router and provisions your live URL (e.g. `https://vyroflix.vercel.app`).
 

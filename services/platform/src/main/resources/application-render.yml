@@ -61,15 +61,30 @@ spring:
       auto-offset-reset: earliest
       enable-auto-commit: false
 
-# Cloudflare R2 / S3 Configuration
-aws:
-  s3:
-    endpoint: ${CLOUDFLARE_R2_ENDPOINT:https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com}
-    access-key: ${CLOUDFLARE_R2_ACCESS_KEY_ID:YOUR_R2_ACCESS_KEY}
-    secret-key: ${CLOUDFLARE_R2_SECRET_ACCESS_KEY:YOUR_R2_SECRET_KEY}
-    region: ${AWS_REGION:auto}
-    bucket-raw: ${CLOUDFLARE_R2_BUCKET_RAW:vyroflix-raw}
-    bucket-content: ${CLOUDFLARE_R2_BUCKET_CONTENT:vyroflix-content}
+vyroflix:
+  # Cloudflare R2 (S3-compatible) — bound to StorageProperties
+  storage:
+    provider: R2
+    endpoint: ${R2_ENDPOINT}
+    region: ${R2_REGION:auto}
+    access-key: ${R2_ACCESS_KEY_ID}
+    secret-key: ${R2_SECRET_ACCESS_KEY}
+    path-style-access-enabled: true
+    raw-bucket: ${R2_BUCKET_RAW:vyroflix-raw}
+    content-bucket: ${R2_BUCKET_CONTENT:vyroflix-content}
+
+  # Supabase Auth JWT validation — bound to SecurityProperties
+  security:
+    jwks-uri: ${SUPABASE_JWKS_URI:${SUPABASE_URL}/auth/v1/.well-known/jwks.json}
+    issuer: ${SUPABASE_JWT_ISSUER:${SUPABASE_URL}/auth/v1}
+    audience: authenticated
+
+  # Event bus — bound to MessagingProperties (KAFKA uses spring.kafka above)
+  messaging:
+    type: ${MESSAGING_TYPE:kafka}
+    upstash:
+      rest-url: ${UPSTASH_KAFKA_REST_URL:}
+      rest-token: ${UPSTASH_KAFKA_REST_TOKEN:}
 
 management:
   endpoints:
