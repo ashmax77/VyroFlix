@@ -476,7 +476,7 @@ Authorization: Bearer <access-token>
 ### 9.1 Frontend (Vercel Hobby)
 
 - Host the Next.js application on Vercel Hobby.
-- Use environment variable `NEXT_PUBLIC_API_BASE_URL` to point to the Render-hosted API Gateway.
+- Use environment variable `NEXT_PUBLIC_GATEWAY_URL` to point to the Render-hosted API Gateway.
 - Benefits:
   - Free global CDN for static and SSR content.
   - 100 GB bandwidth/month and 1M serverless function invocations/month (Hobby limits).

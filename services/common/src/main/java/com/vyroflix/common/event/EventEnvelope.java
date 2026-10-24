@@ -16,7 +16,7 @@ import java.util.UUID;
  * Consumers use {@code eventId} for idempotency and {@code correlationId}
  * for distributed tracing across the pipeline.</p>
  *
- * <p>Envelope format (from ARCHITECTURE.md):</p>
+ * <p>Envelope format (from docs/ARCHITECTURE.md):</p>
  * <pre>{@code
  * {
  *   "eventId": "uuid",

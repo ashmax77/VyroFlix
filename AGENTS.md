@@ -4,8 +4,8 @@
 
 You are implementing **VyroFlix**, a low-cost, cloud-native video-on-demand platform. Read this file before changing the repository. It is the repository-wide implementation contract and must be used together with:
 
-- `PROJECT_REQUIREMENTS.md` — product and acceptance requirements.
-- `ARCHITECTURE.md` — service boundaries, data ownership, APIs, events, media flow, and deployment strategy.
+- `docs/PROJECT_REQUIREMENTS.md` — product and acceptance requirements.
+- `docs/ARCHITECTURE.md` — service boundaries, data ownership, APIs, events, media flow, and deployment strategy.
 - `apps/web/AGENTS.md` — Next.js frontend rules, if that file exists.
 - `services/AGENTS.md` — Spring Boot backend rules, if that file exists.
 
@@ -78,8 +78,6 @@ Prefer this structure:
 ```text
 vyroflix/
   AGENTS.md
-  PROJECT_REQUIREMENTS.md
-  ARCHITECTURE.md
   apps/
     web/
   services/
@@ -98,6 +96,13 @@ vyroflix/
     vercel/
     observability/
   docs/
+    PROJECT_REQUIREMENTS.md
+    ARCHITECTURE.md
+    DEPLOYMENT_GUIDE.md
+    api/
+    events/
+  tests/
+    load/
   .env.example
   docker-compose.yml
 ```
@@ -455,7 +460,7 @@ A change is complete only when:
 
 Before editing:
 
-1. Read `AGENTS.md`, `PROJECT_REQUIREMENTS.md`, and `ARCHITECTURE.md`.
+1. Read `AGENTS.md`, `docs/PROJECT_REQUIREMENTS.md`, and `docs/ARCHITECTURE.md`.
 2. Inspect the existing repository and identify affected services.
 3. State assumptions and identify missing contracts.
 4. Propose a small implementation plan.

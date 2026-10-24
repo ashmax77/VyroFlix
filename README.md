@@ -258,8 +258,12 @@ The Gateway health endpoint is available at `http://localhost:8080/actuator/heal
 
 | Document | Description |
 |---|---|
-| [PROJECT_REQUIREMENTS.md](PROJECT_REQUIREMENTS.md) | Product scope, functional requirements, quality requirements, and acceptance criteria. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Service boundaries, data ownership, API contracts, events, media flow, and deployment strategy. |
+| [PROJECT_REQUIREMENTS.md](docs/PROJECT_REQUIREMENTS.md) | Product scope, functional requirements, quality requirements, and acceptance criteria. |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Service boundaries, data ownership, API contracts, events, media flow, and deployment strategy. |
+| [API_REFERENCE.md](docs/api/API_REFERENCE.md) | REST endpoints exposed under `/api/v1`, grouped by service. |
+| [EVENT_CATALOG.md](docs/events/EVENT_CATALOG.md) | Versioned Kafka events, producers, and consumers. |
+| [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | Zero-cost cloud deployment (Supabase, Upstash, Cloudflare R2, Render, Vercel). |
+| [Load tests](tests/load/README.md) | k6 scripts for browse, search, playback authorization, and progress updates. |
 | [AGENTS.md](AGENTS.md) | Repository implementation rules and engineering constraints. |
 
 ## License
