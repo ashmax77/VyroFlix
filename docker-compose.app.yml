@@ -9,7 +9,7 @@ services:
   platform:
     build:
       context: .
-      dockerfile: infra/render/Dockerfile
+      dockerfile: Dockerfile
     container_name: vyroflix-platform
     restart: unless-stopped
     ports:

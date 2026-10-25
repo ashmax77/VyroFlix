@@ -9,7 +9,7 @@ services:
   - type: web
     name: vyroflix-backend
     runtime: docker
-    dockerfilePath: ./infra/render/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
     region: oregon
