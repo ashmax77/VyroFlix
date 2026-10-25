@@ -333,6 +333,37 @@ export async function checkWatchlist(titleId: string): Promise<boolean> {
   return false;
 }
 
+let cachedAuthToken: string | null = null;
+
+export function setStoredAuthToken(token: string | null) {
+  cachedAuthToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('vyroflix_auth_token', token);
+    } else {
+      localStorage.removeItem('vyroflix_auth_token');
+    }
+  }
+}
+
+export function getStoredAuthToken(): string | null {
+  if (cachedAuthToken) return cachedAuthToken;
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('vyroflix_auth_token');
+  }
+  return null;
+}
+
+export function setStoredUserId(id: string | null) {
+  if (typeof window !== 'undefined') {
+    if (id) {
+      localStorage.setItem('vyroflix_user_id', id);
+    } else {
+      localStorage.removeItem('vyroflix_user_id');
+    }
+  }
+}
+
 export function getStoredUserId(): string {
   if (typeof window !== 'undefined') {
     let id = localStorage.getItem('vyroflix_user_id');
@@ -343,6 +374,17 @@ export function getStoredUserId(): string {
     return id;
   }
   return '00000000-0000-0000-0000-000000000001';
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-User-Id': getStoredUserId(),
+  };
+  const token = getStoredAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 /**

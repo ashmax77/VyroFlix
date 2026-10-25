@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import HeroBillboard from '../../components/HeroBillboard';
-import ContentRail from '../../components/ContentRail';
-import { fetchHomeFeed, fetchContinueWatching, fetchTrendingRail, fetchPersonalRecommendations } from '../../lib/api';
-import { HomeFeed, ViewingProgress, Title } from '../../types';
-import { Loader2 } from 'lucide-react';
+import HeroBillboard from '@/components/HeroBillboard';
+import ContentRail from '@/components/ContentRail';
+import { Spinner } from '@/components/common';
+import { fetchHomeFeed, fetchContinueWatching, fetchTrendingRail, fetchPersonalRecommendations } from '@/lib/api';
+import type { HomeFeed, ViewingProgress, Title } from '@/types';
 
 export default function BrowsePage() {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
@@ -38,7 +38,7 @@ export default function BrowsePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <Spinner label="Loading catalog & recommendations..." />
       </div>
     );
   }
@@ -51,27 +51,33 @@ export default function BrowsePage() {
     );
   }
 
+  const featuredRotation = [
+    feed.featuredTitle,
+    ...trending.filter((t) => t.id !== feed.featuredTitle?.id).slice(0, 3),
+  ];
+
   return (
     <div className="min-h-screen pb-20">
-      {/* Cinematic Hero Billboard */}
-      <HeroBillboard title={feed.featuredTitle} />
+      {/* Cinematic Hero Billboard with Auto-advancing Rotation */}
+      <HeroBillboard titles={featuredRotation} />
 
-      {/* Content Rails Section */}
+      {/* Content Rails Section with Top10 Styling & Hover Mini-Panels */}
       <div className="relative -mt-16 sm:-mt-24 z-20 space-y-6">
-        {/* Continue Watching Rail (if user has active viewing progress) */}
+        {/* Continue Watching Rail */}
         {continueWatching.length > 0 && (
           <ContentRail
-            title="Continue Watching for You"
+            title="Continue Watching"
             progressItems={continueWatching}
             onWatchlistChanged={loadData}
           />
         )}
 
-        {/* Dynamic Trending Rail from Recommendation-Service */}
+        {/* Dynamic Trending Rail with iconic Top 10 Outline Numbering */}
         {trending.length > 0 && (
           <ContentRail
-            title="Trending on VyroFlix"
+            title="Top 10 Trending Today"
             items={trending}
+            isTop10={true}
             onWatchlistChanged={loadData}
           />
         )}
@@ -79,7 +85,7 @@ export default function BrowsePage() {
         {/* Personalized Recommendations Rail */}
         {recommended.length > 0 && (
           <ContentRail
-            title="Recommended for You"
+            title="Recommended For You"
             items={recommended}
             onWatchlistChanged={loadData}
           />
