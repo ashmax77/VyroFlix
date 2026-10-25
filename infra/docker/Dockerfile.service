@@ -1,0 +1,75 @@
+# ============================================================
+# VyroFlix Microservices — Standardized Multi-Stage Dockerfile
+# Builds any specified service in the Maven reactor
+#
+# Build arguments:
+#   SERVICE_NAME: module name in services/ (e.g. api-gateway, identity-service, platform)
+#   SERVICE_PORT: default container port to expose (e.g. 8080)
+#   INSTALL_FFMPEG: "true" to install FFmpeg in runtime (required for encoding-service)
+# ============================================================
+
+# ------------------------------------------------------------
+# Stage 1: Build JAR from Maven Reactor
+# ------------------------------------------------------------
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+
+ARG SERVICE_NAME=platform
+
+WORKDIR /build
+
+# Copy Maven POMs first for dependency caching
+COPY services/pom.xml ./services/pom.xml
+COPY services/common/pom.xml ./services/common/pom.xml
+COPY services/identity-service/pom.xml ./services/identity-service/pom.xml
+COPY services/content-service/pom.xml ./services/content-service/pom.xml
+COPY services/video-service/pom.xml ./services/video-service/pom.xml
+COPY services/encoding-service/pom.xml ./services/encoding-service/pom.xml
+COPY services/streaming-service/pom.xml ./services/streaming-service/pom.xml
+COPY services/history-service/pom.xml ./services/history-service/pom.xml
+COPY services/search-service/pom.xml ./services/search-service/pom.xml
+COPY services/recommendation-service/pom.xml ./services/recommendation-service/pom.xml
+COPY services/api-gateway/pom.xml ./services/api-gateway/pom.xml
+COPY services/platform/pom.xml ./services/platform/pom.xml
+
+# Copy all Java source files and resources
+COPY services/ ./services/
+
+# Package target service and its reactor dependencies
+RUN mvn clean package -pl :${SERVICE_NAME} -am -DskipTests -f services/pom.xml
+
+# ------------------------------------------------------------
+# Stage 2: Minimal Production Runtime
+# ------------------------------------------------------------
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+ARG SERVICE_NAME=platform
+ARG SERVICE_PORT=8080
+ARG INSTALL_FFMPEG=false
+
+LABEL maintainer="VyroFlix Team"
+LABEL service="${SERVICE_NAME}"
+
+# Install FFmpeg if required (e.g. for encoding-service)
+RUN if [ "$INSTALL_FFMPEG" = "true" ] ; then \
+      apk add --no-cache ffmpeg ; \
+    fi
+
+# Non-root user for security
+RUN addgroup -S vyroflix && adduser -S vyroflix -G vyroflix
+USER vyroflix:vyroflix
+
+WORKDIR /app
+
+# Copy built JAR from builder
+COPY --from=builder /build/services/${SERVICE_NAME}/target/${SERVICE_NAME}-*.jar /app/app.jar
+
+ENV PORT=${SERVICE_PORT}
+EXPOSE ${SERVICE_PORT}
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/actuator/health || exit 1
+
+ENTRYPOINT ["java", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "/app/app.jar"]

@@ -1,0 +1,10 @@
+.git
+.github
+.vscode
+apps/web/node_modules
+apps/web/.next
+**/target
+**/.idea
+**/*.iml
+.env
+.env.local

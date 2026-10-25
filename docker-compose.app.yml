@@ -1,0 +1,58 @@
+# ============================================================
+# VyroFlix — Application Services Docker Compose
+# Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up --build -d
+# ============================================================
+
+services:
+  # Combined Spring Boot Backend Platform
+  platform:
+    build:
+      context: .
+      dockerfile: infra/render/Dockerfile
+    container_name: vyroflix-platform
+    restart: unless-stopped
+    ports:
+      - "8080:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      VYROFLIX_STORAGE_ENDPOINT: http://minio:9000
+      VYROFLIX_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-vyroflix}
+      VYROFLIX_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-vyroflix123}
+      VYROFLIX_SECURITY_MOCK_AUTH_ENABLED: "false"
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - vyroflix-network
+
+  # Next.js Web Frontend
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    container_name: vyroflix-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_GATEWAY_URL: http://platform:8081
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    depends_on:
+      - platform
+    networks:
+      - vyroflix-network

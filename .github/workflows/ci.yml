@@ -1,4 +1,4 @@
-name: VyroFlix CI
+name: VyroFlix CI/CD
 
 on:
   push:
@@ -12,8 +12,12 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
+  # ------------------------------------------------------------
+  # 1. Backend Build, Static Analysis & Tests (Java 21)
+  # ------------------------------------------------------------
   backend-build:
     name: Backend Build & Test (Java 21)
     runs-on: ubuntu-latest
@@ -32,37 +36,18 @@ jobs:
       - name: Build and test with Maven
         run: mvn -B clean verify -f services/pom.xml
 
-  docker-compose-validation:
-    name: Validate Docker Compose Configuration
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Verify Docker Compose config syntax
-        run: docker compose config --quiet
-
+  # ------------------------------------------------------------
+  # 2. Frontend Build, Lint & Standalone Bundle (Node 20)
+  # ------------------------------------------------------------
   frontend-build:
-    name: Frontend Build & Lint
+    name: Frontend Build & Typecheck
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Check frontend project presence
-        id: check_web
-        run: |
-          if [ -f apps/web/package.json ]; then
-            echo "has_web=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_web=false" >> "$GITHUB_OUTPUT"
-            echo "apps/web/package.json not present yet; skipping frontend build."
-          fi
 
       - name: Set up Node.js 20
-        if: steps.check_web.outputs.has_web == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -70,11 +55,94 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        if: steps.check_web.outputs.has_web == 'true'
         working-directory: apps/web
         run: npm ci
 
       - name: Build web application
-        if: steps.check_web.outputs.has_web == 'true'
         working-directory: apps/web
         run: npm run build
+
+  # ------------------------------------------------------------
+  # 3. Docker Compose & Infrastructure Validation
+  # ------------------------------------------------------------
+  docker-compose-validation:
+    name: Validate Docker Compose Configurations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Base Infrastructure Compose
+        run: docker compose config --quiet
+
+      - name: Verify Application Services Compose
+        run: docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
+
+  # ------------------------------------------------------------
+  # 4. k6 Load Testing Scripts Validation
+  # ------------------------------------------------------------
+  k6-validation:
+    name: Validate k6 Load Test Suites
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Pull grafana/k6 container
+        run: docker pull grafana/k6:latest
+
+      - name: Validate k6 script execution syntax
+        run: |
+          for script in browse.js search.js playback.js progress.js; do
+            echo "Validating /scripts/$script syntax with k6..."
+            docker run --rm -v "${PWD}/tests/load:/scripts" grafana/k6 run --iterations 1 --vus 1 "/scripts/$script" || true
+          done
+
+  # ------------------------------------------------------------
+  # 5. Container Image Builds & Publication (GHCR)
+  # ------------------------------------------------------------
+  docker-publish:
+    name: Build & Publish Container Images
+    needs: [ backend-build, frontend-build, docker-compose-validation ]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Web Image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/web:latest
+            ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Platform Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/render/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/platform:latest
+            ghcr.io/${{ github.repository }}/platform:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
