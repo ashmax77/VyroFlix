@@ -28,7 +28,8 @@ COPY services/platform/pom.xml ./services/platform/pom.xml
 COPY services/ ./services/
 
 # Package platform fat JAR (skipping unit tests to accelerate build)
-RUN mvn clean package -pl :platform -am -DskipTests -f services/pom.xml
+RUN mvn clean package -pl :platform -am -DskipTests -f services/pom.xml && \
+    cp $(find . -name "platform-*-exec.jar" | head -n 1) /build/app.jar
 
 # ------------------------------------------------------------
 # Stage 2: Minimal Production Runtime
@@ -44,8 +45,8 @@ USER vyroflix:vyroflix
 
 WORKDIR /app
 
-# Copy the built fat JAR from builder stage
-COPY --from=builder /build/services/platform/target/platform-*.jar /app/app.jar
+# Copy the built fat executable JAR from builder stage
+COPY --from=builder /build/app.jar /app/app.jar
 
 ENV PORT=8081
 EXPOSE 8081

@@ -26,7 +26,8 @@ COPY platform/pom.xml ./platform/pom.xml
 COPY . ./
 
 # Package platform fat JAR (skipping unit tests to accelerate build)
-RUN mvn clean package -pl :platform -am -DskipTests -f pom.xml
+RUN mvn clean package -pl :platform -am -DskipTests -f pom.xml && \
+    cp $(find . -name "platform-*-exec.jar" | head -n 1) /build/app.jar
 
 # Stage 2: Minimal Production Runtime
 FROM eclipse-temurin:21-jre-alpine AS runtime
@@ -40,8 +41,8 @@ USER vyroflix:vyroflix
 
 WORKDIR /app
 
-# Copy the built fat JAR from builder stage
-COPY --from=builder /build/platform/target/platform-*.jar /app/app.jar
+# Copy the built fat executable JAR from builder stage
+COPY --from=builder /build/app.jar /app/app.jar
 
 ENV PORT=8081
 EXPOSE 8081
