@@ -1,7 +1,7 @@
 package com.vyroflix.streaming.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vyroflix.common.util.Constants;
+import com.vyroflix.common.security.UserPrincipal;
 import com.vyroflix.streaming.dto.CreateSessionRequest;
 import com.vyroflix.streaming.dto.PlaybackSessionResponse;
 import com.vyroflix.streaming.service.StreamingService;
@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,6 +38,22 @@ class StreamingControllerTest {
 
     @MockBean
     private StreamingService streamingService;
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    private UsernamePasswordAuthenticationToken authPrincipal(UUID userId) {
+        UserPrincipal principal = UserPrincipal.builder()
+                .userId(userId)
+                .email("user@vyroflix.com")
+                .role("USER")
+                .build();
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        return auth;
+    }
 
     @Test
     @DisplayName("POST /api/v1/streaming/sessions returns 201 with signed manifest URL")
@@ -61,7 +79,7 @@ class StreamingControllerTest {
                 .thenReturn(response);
 
         mockMvc.perform(post("/api/v1/streaming/sessions")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -72,6 +90,7 @@ class StreamingControllerTest {
     @Test
     @DisplayName("POST /api/v1/streaming/sessions returns 401 when unauthenticated")
     void createSession_Unauthenticated() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
         UUID contentId = UUID.randomUUID();
         CreateSessionRequest request = CreateSessionRequest.builder()
                 .contentId(contentId)

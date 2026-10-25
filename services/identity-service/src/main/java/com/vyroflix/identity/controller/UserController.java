@@ -3,7 +3,6 @@ package com.vyroflix.identity.controller;
 import com.vyroflix.common.error.ApiException;
 import com.vyroflix.common.error.ErrorCode;
 import com.vyroflix.common.security.UserPrincipal;
-import com.vyroflix.common.util.Constants;
 import com.vyroflix.identity.dto.UpdateProfileRequest;
 import com.vyroflix.identity.dto.UserProfileResponse;
 import com.vyroflix.identity.service.UserService;
@@ -26,21 +25,19 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getCurrentUser(
-            @RequestHeader(value = Constants.HEADER_USER_ID, required = false) String headerUserId,
             @AuthenticationPrincipal UserPrincipal principal) {
 
-        UUID userId = resolveUserId(headerUserId, principal);
+        UUID userId = resolveUserId(principal);
         UserProfileResponse response = userService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/me")
     public ResponseEntity<UserProfileResponse> updateCurrentUser(
-            @RequestHeader(value = Constants.HEADER_USER_ID, required = false) String headerUserId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateProfileRequest request) {
 
-        UUID userId = resolveUserId(headerUserId, principal);
+        UUID userId = resolveUserId(principal);
         UserProfileResponse response = userService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
     }
@@ -51,16 +48,9 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    private UUID resolveUserId(String headerUserId, UserPrincipal principal) {
+    private UUID resolveUserId(UserPrincipal principal) {
         if (principal != null && principal.getUserId() != null) {
             return principal.getUserId();
-        }
-        if (headerUserId != null && !headerUserId.isBlank()) {
-            try {
-                return UUID.fromString(headerUserId);
-            } catch (IllegalArgumentException e) {
-                throw new ApiException(ErrorCode.BAD_REQUEST, "Invalid X-User-Id header format");
-            }
         }
         throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required to access user profile");
     }

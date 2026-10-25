@@ -1,7 +1,7 @@
 package com.vyroflix.history.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vyroflix.common.util.Constants;
+import com.vyroflix.common.security.UserPrincipal;
 import com.vyroflix.history.dto.*;
 import com.vyroflix.history.entity.TargetType;
 import com.vyroflix.history.service.HistoryService;
@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +40,22 @@ class HistoryControllerTest {
 
     @MockBean
     private HistoryService historyService;
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    private UsernamePasswordAuthenticationToken authPrincipal(UUID userId) {
+        UserPrincipal principal = UserPrincipal.builder()
+                .userId(userId)
+                .email("user@vyroflix.com")
+                .role("USER")
+                .build();
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        return auth;
+    }
 
     @Test
     @DisplayName("PUT /api/v1/history/progress returns 200 OK with updated progress")
@@ -67,7 +85,7 @@ class HistoryControllerTest {
         when(historyService.recordProgress(eq(userId), any(RecordProgressRequest.class))).thenReturn(response);
 
         mockMvc.perform(put("/api/v1/history/progress")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -106,7 +124,7 @@ class HistoryControllerTest {
                 .build();
 
         mockMvc.perform(put("/api/v1/history/progress")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity());
@@ -133,7 +151,7 @@ class HistoryControllerTest {
         when(historyService.getContinueWatching(eq(userId), eq(10))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/history/continue-watching")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .param("limit", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].contentId").value(contentId.toString()))
@@ -156,7 +174,7 @@ class HistoryControllerTest {
         when(historyService.getWatchlist(eq(userId), eq(0), eq(20))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/history/watchlist")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
@@ -180,7 +198,7 @@ class HistoryControllerTest {
         when(historyService.addToWatchlist(eq(userId), any(AddToWatchlistRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/history/watchlist")
-                        .header(Constants.HEADER_USER_ID, userId.toString())
+                        .with(authentication(authPrincipal(userId)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -196,7 +214,7 @@ class HistoryControllerTest {
         doNothing().when(historyService).removeFromWatchlist(userId, titleId);
 
         mockMvc.perform(delete("/api/v1/history/watchlist/{titleId}", titleId)
-                        .header(Constants.HEADER_USER_ID, userId.toString()))
+                        .with(authentication(authPrincipal(userId))))
                 .andExpect(status().isNoContent());
     }
 
@@ -210,7 +228,7 @@ class HistoryControllerTest {
         when(historyService.isInWatchlist(userId, titleId)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/history/watchlist/{titleId}/check", titleId)
-                        .header(Constants.HEADER_USER_ID, userId.toString()))
+                        .with(authentication(authPrincipal(userId))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.titleId").value(titleId.toString()))
                 .andExpect(jsonPath("$.inWatchlist").value(true));
