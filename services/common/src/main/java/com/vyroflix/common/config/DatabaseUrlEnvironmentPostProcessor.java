@@ -77,6 +77,22 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
                     }
                 }
 
+                // IPv4 Pooler auto-redirect for Supabase (direct host db.<ref>.supabase.co is IPv6-only)
+                if (host != null && host.startsWith("db.") && host.endsWith(".supabase.co")) {
+                    String projectRef = host.substring(3, host.indexOf(".supabase.co"));
+                    String poolerHost = System.getenv("SUPABASE_POOLER_HOST");
+                    if (poolerHost == null || poolerHost.isBlank()) {
+                        poolerHost = "aws-0-ap-southeast-1.pooler.supabase.com";
+                    }
+                    host = poolerHost;
+                    String currentUser = (String) overrides.getOrDefault(SPRING_DATASOURCE_USERNAME,
+                            environment.getProperty(SPRING_DATASOURCE_USERNAME));
+                    if (currentUser == null || currentUser.isBlank() || currentUser.equals("postgres")) {
+                        overrides.put(SPRING_DATASOURCE_USERNAME, "postgres." + projectRef);
+                    }
+                    log.info("Redirected IPv6-only Supabase direct host to IPv4 pooler: {} (user: postgres.{})", host, projectRef);
+                }
+
                 // Construct clean JDBC URL
                 StringBuilder jdbcUrl = new StringBuilder("jdbc:postgresql://")
                         .append(host)

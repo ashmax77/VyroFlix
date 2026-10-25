@@ -72,6 +72,21 @@ public class PlatformApplication {
                     }
                 }
 
+                // IPv4 Pooler auto-redirect for Supabase (direct host db.<ref>.supabase.co is IPv6-only)
+                if (host != null && host.startsWith("db.") && host.endsWith(".supabase.co")) {
+                    String projectRef = host.substring(3, host.indexOf(".supabase.co"));
+                    String poolerHost = System.getenv("SUPABASE_POOLER_HOST");
+                    if (poolerHost == null || poolerHost.isBlank()) {
+                        poolerHost = "aws-0-ap-southeast-1.pooler.supabase.com";
+                    }
+                    host = poolerHost;
+                    String user = System.getProperty("spring.datasource.username");
+                    if (user == null || user.isBlank() || "postgres".equals(user)) {
+                        System.setProperty("spring.datasource.username", "postgres." + projectRef);
+                    }
+                    System.out.println("[VyroFlix] Redirected IPv6-only Supabase host to IPv4 pooler: " + host + " (user: postgres." + projectRef + ")");
+                }
+
                 StringBuilder jdbc = new StringBuilder("jdbc:postgresql://")
                         .append(host).append(":").append(port).append(path);
                 boolean hasQuery = query != null && !query.isBlank();

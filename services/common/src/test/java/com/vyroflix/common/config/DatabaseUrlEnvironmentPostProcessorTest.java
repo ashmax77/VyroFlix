@@ -23,9 +23,9 @@ class DatabaseUrlEnvironmentPostProcessorTest {
             processor.postProcessEnvironment(env, application);
 
             assertThat(env.getProperty("spring.datasource.url"))
-                    .isEqualTo("jdbc:postgresql://db.sxyrwfjwdxsbiuqmvvac.supabase.co:5432/postgres?sslmode=require");
+                    .isEqualTo("jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require");
             assertThat(env.getProperty("spring.datasource.username"))
-                    .isEqualTo("postgres");
+                    .isEqualTo("postgres.sxyrwfjwdxsbiuqmvvac");
             assertThat(env.getProperty("spring.datasource.password"))
                     .isEqualTo("mysecretpass");
         } finally {
