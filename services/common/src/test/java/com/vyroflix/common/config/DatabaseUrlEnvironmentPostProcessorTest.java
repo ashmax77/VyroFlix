@@ -1,0 +1,71 @@
+package com.vyroflix.common.config;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.StandardEnvironment;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class DatabaseUrlEnvironmentPostProcessorTest {
+
+    private final DatabaseUrlEnvironmentPostProcessor processor = new DatabaseUrlEnvironmentPostProcessor();
+    private final SpringApplication application = new SpringApplication();
+
+    @Test
+    @DisplayName("Normalizes Supabase URI format with credentials to valid JDBC URL")
+    void normalizesSupabaseUriWithCredentials() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("SPRING_DATASOURCE_URL", "postgresql://postgres:mysecretpass@db.sxyrwfjwdxsbiuqmvvac.supabase.co:5432/postgres");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.datasource.url"))
+                    .isEqualTo("jdbc:postgresql://db.sxyrwfjwdxsbiuqmvvac.supabase.co:5432/postgres?sslmode=require");
+            assertThat(env.getProperty("spring.datasource.username"))
+                    .isEqualTo("postgres");
+            assertThat(env.getProperty("spring.datasource.password"))
+                    .isEqualTo("mysecretpass");
+        } finally {
+            System.clearProperty("SPRING_DATASOURCE_URL");
+        }
+    }
+
+    @Test
+    @DisplayName("Leaves standard JDBC URL intact")
+    void leavesStandardJdbcUrlIntact() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("SPRING_DATASOURCE_URL", "jdbc:postgresql://localhost:5432/vyroflix");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.datasource.url"))
+                    .isEqualTo("jdbc:postgresql://localhost:5432/vyroflix");
+        } finally {
+            System.clearProperty("SPRING_DATASOURCE_URL");
+        }
+    }
+
+    @Test
+    @DisplayName("Handles postgres:// scheme and session pooler port")
+    void handlesPostgresSchemeWithPooler() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("SPRING_DATASOURCE_URL", "postgres://postgres.ref:secret@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.datasource.url"))
+                    .isEqualTo("jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require");
+            assertThat(env.getProperty("spring.datasource.username"))
+                    .isEqualTo("postgres.ref");
+            assertThat(env.getProperty("spring.datasource.password"))
+                    .isEqualTo("secret");
+        } finally {
+            System.clearProperty("SPRING_DATASOURCE_URL");
+        }
+    }
+}
