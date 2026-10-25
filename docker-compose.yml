@@ -114,6 +114,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vyroflix123}
       MINIO_API_PORT_NUMBER: "9000"
       MINIO_CONSOLE_PORT_NUMBER: "9001"
+    user: root
     volumes:
       - minio_data:/bitnami/minio/data
     healthcheck:
