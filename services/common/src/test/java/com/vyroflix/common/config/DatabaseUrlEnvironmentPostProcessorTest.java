@@ -23,7 +23,7 @@ class DatabaseUrlEnvironmentPostProcessorTest {
             processor.postProcessEnvironment(env, application);
 
             assertThat(env.getProperty("spring.datasource.url"))
-                    .isEqualTo("jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require");
+                    .isEqualTo("jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require");
             assertThat(env.getProperty("spring.datasource.username"))
                     .isEqualTo("postgres.sxyrwfjwdxsbiuqmvvac");
             assertThat(env.getProperty("spring.datasource.password"))
@@ -66,6 +66,26 @@ class DatabaseUrlEnvironmentPostProcessorTest {
                     .isEqualTo("secret");
         } finally {
             System.clearProperty("SPRING_DATASOURCE_URL");
+        }
+    }
+
+    @Test
+    @DisplayName("Self-heals ap-southeast-1 pooler host to ap-south-1")
+    void selfHealsApSoutheast1Pooler() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("SPRING_DATASOURCE_URL", "jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require");
+        System.setProperty("SPRING_DATASOURCE_USERNAME", "postgres");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.datasource.url"))
+                    .isEqualTo("jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require");
+            assertThat(env.getProperty("spring.datasource.username"))
+                    .isEqualTo("postgres.sxyrwfjwdxsbiuqmvvac");
+        } finally {
+            System.clearProperty("SPRING_DATASOURCE_URL");
+            System.clearProperty("SPRING_DATASOURCE_USERNAME");
         }
     }
 }

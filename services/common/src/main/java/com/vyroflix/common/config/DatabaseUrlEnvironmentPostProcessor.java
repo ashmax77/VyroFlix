@@ -82,7 +82,13 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
                     String projectRef = host.substring(3, host.indexOf(".supabase.co"));
                     String poolerHost = System.getenv("SUPABASE_POOLER_HOST");
                     if (poolerHost == null || poolerHost.isBlank()) {
-                        poolerHost = "aws-0-ap-southeast-1.pooler.supabase.com";
+                        String region = System.getenv("SUPABASE_REGION");
+                        if (region != null && !region.isBlank()) {
+                            poolerHost = "aws-0-" + region.trim() + ".pooler.supabase.com";
+                        } else {
+                            // Default to ap-south-1 (Mumbai) where project sxyrwfjwdxsbiuqmvvac is hosted
+                            poolerHost = "aws-0-ap-south-1.pooler.supabase.com";
+                        }
                     }
                     host = poolerHost;
                     String currentUser = (String) overrides.getOrDefault(SPRING_DATASOURCE_USERNAME,
@@ -91,6 +97,34 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
                         overrides.put(SPRING_DATASOURCE_USERNAME, "postgres." + projectRef);
                     }
                     log.info("Redirected IPv6-only Supabase direct host to IPv4 pooler: {} (user: postgres.{})", host, projectRef);
+                } else if (host != null && host.contains("aws-0-ap-southeast-1.pooler.supabase.com")) {
+                    host = host.replace("aws-0-ap-southeast-1.pooler.supabase.com", "aws-0-ap-south-1.pooler.supabase.com");
+                    log.info("Corrected pooler region from ap-southeast-1 to ap-south-1: {}", host);
+                }
+
+                // Ensure Supabase pooler username includes tenant project-ref (e.g. postgres.<ref>)
+                if (host != null && host.contains("pooler.supabase.com")) {
+                    String currentUser = (String) overrides.get(SPRING_DATASOURCE_USERNAME);
+                    if (currentUser == null || currentUser.isBlank()) {
+                        currentUser = environment.getProperty(SPRING_DATASOURCE_USERNAME);
+                    }
+                    if (currentUser == null || currentUser.isBlank()) {
+                        currentUser = environment.getProperty("SPRING_DATASOURCE_USERNAME");
+                    }
+                    if (currentUser == null || currentUser.isBlank()) {
+                        currentUser = environment.getProperty("POSTGRES_USER");
+                    }
+                    if (currentUser == null || currentUser.isBlank()) {
+                        currentUser = "postgres";
+                    }
+
+                    if (!currentUser.contains(".")) {
+                        String projectRef = resolveSupabaseProjectRef(environment);
+                        overrides.put(SPRING_DATASOURCE_USERNAME, currentUser + "." + projectRef);
+                        log.info("Appended Supabase tenant to username for pooler: {}.{}", currentUser, projectRef);
+                    } else {
+                        overrides.put(SPRING_DATASOURCE_USERNAME, currentUser);
+                    }
                 }
 
                 // Construct clean JDBC URL
@@ -129,5 +163,26 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
         if (!overrides.isEmpty()) {
             environment.getPropertySources().addFirst(new MapPropertySource("databaseUrlNormalizer", overrides));
         }
+    }
+
+    private String resolveSupabaseProjectRef(ConfigurableEnvironment environment) {
+        String ref = System.getenv("SUPABASE_PROJECT_REF");
+        if (ref != null && !ref.isBlank()) {
+            return ref.trim();
+        }
+        String url = environment.getProperty("supabase.url");
+        if (url == null || url.isBlank()) {
+            url = System.getenv("SUPABASE_URL");
+        }
+        if (url != null && url.contains(".supabase.co")) {
+            try {
+                java.net.URI uri = java.net.URI.create(url);
+                String h = uri.getHost();
+                if (h != null && h.endsWith(".supabase.co")) {
+                    return h.substring(0, h.indexOf(".supabase.co"));
+                }
+            } catch (Exception ignored) {}
+        }
+        return "sxyrwfjwdxsbiuqmvvac";
     }
 }

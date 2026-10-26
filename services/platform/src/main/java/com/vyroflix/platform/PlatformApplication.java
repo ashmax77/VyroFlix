@@ -77,7 +77,13 @@ public class PlatformApplication {
                     String projectRef = host.substring(3, host.indexOf(".supabase.co"));
                     String poolerHost = System.getenv("SUPABASE_POOLER_HOST");
                     if (poolerHost == null || poolerHost.isBlank()) {
-                        poolerHost = "aws-0-ap-southeast-1.pooler.supabase.com";
+                        String region = System.getenv("SUPABASE_REGION");
+                        if (region != null && !region.isBlank()) {
+                            poolerHost = "aws-0-" + region.trim() + ".pooler.supabase.com";
+                        } else {
+                            // Default to ap-south-1 (Mumbai) where project sxyrwfjwdxsbiuqmvvac is hosted
+                            poolerHost = "aws-0-ap-south-1.pooler.supabase.com";
+                        }
                     }
                     host = poolerHost;
                     String user = System.getProperty("spring.datasource.username");
@@ -85,6 +91,22 @@ public class PlatformApplication {
                         System.setProperty("spring.datasource.username", "postgres." + projectRef);
                     }
                     System.out.println("[VyroFlix] Redirected IPv6-only Supabase host to IPv4 pooler: " + host + " (user: postgres." + projectRef + ")");
+                } else if (host != null && host.contains("aws-0-ap-southeast-1.pooler.supabase.com")) {
+                    host = host.replace("aws-0-ap-southeast-1.pooler.supabase.com", "aws-0-ap-south-1.pooler.supabase.com");
+                    System.out.println("[VyroFlix] Corrected pooler region from ap-southeast-1 to ap-south-1: " + host);
+                }
+
+                // Ensure Supabase pooler username includes tenant project-ref (e.g. postgres.<ref>)
+                if (host != null && host.contains("pooler.supabase.com")) {
+                    String user = System.getProperty("spring.datasource.username");
+                    if (user != null && !user.isBlank() && !user.contains(".")) {
+                        String projectRef = System.getenv("SUPABASE_PROJECT_REF");
+                        if (projectRef == null || projectRef.isBlank()) {
+                            projectRef = "sxyrwfjwdxsbiuqmvvac";
+                        }
+                        System.setProperty("spring.datasource.username", user + "." + projectRef);
+                        System.out.println("[VyroFlix] Appended Supabase tenant to username for pooler: " + user + "." + projectRef);
+                    }
                 }
 
                 StringBuilder jdbc = new StringBuilder("jdbc:postgresql://")
