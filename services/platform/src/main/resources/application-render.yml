@@ -39,7 +39,7 @@ spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: true
-    schemas: public,content,identity,video,encoding,streaming,history,search,recommendation
+    schemas: public
 
   data:
     redis:

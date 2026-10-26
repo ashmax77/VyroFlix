@@ -24,8 +24,10 @@ spring:
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration/search
     schemas: search
     default-schema: search
+    baseline-on-migrate: true
 
 management:
   endpoints:

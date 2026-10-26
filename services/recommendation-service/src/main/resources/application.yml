@@ -24,8 +24,10 @@ spring:
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration/recommendation
     schemas: recommendation
     default-schema: recommendation
+    baseline-on-migrate: true
 
 management:
   endpoints:

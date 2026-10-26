@@ -24,8 +24,10 @@ spring:
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration/encoding
     schemas: encoding
     default-schema: encoding
+    baseline-on-migrate: true
 
 management:
   endpoints:

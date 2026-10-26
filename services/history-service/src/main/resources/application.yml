@@ -24,8 +24,10 @@ spring:
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration/history
     schemas: history
     default-schema: history
+    baseline-on-migrate: true
 
 management:
   endpoints:
