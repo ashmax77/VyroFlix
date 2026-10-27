@@ -175,7 +175,64 @@ BEGIN
     END IF;
 END $$;
 
--- 6. Media Asset References (READY status with HLS master playlist paths)
+-- 6. Media Asset References & Remaining Catalog Tables
+CREATE TABLE IF NOT EXISTS persons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    avatar_url VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS title_credits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+    person_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL,
+    character_name VARCHAR(255)
+);
+CREATE INDEX IF NOT EXISTS idx_credits_title ON title_credits(title_id);
+CREATE INDEX IF NOT EXISTS idx_credits_person ON title_credits(person_id);
+
+CREATE TABLE IF NOT EXISTS media_asset_references (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    target_id UUID NOT NULL,
+    asset_type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    master_playlist_url VARCHAR(500),
+    duration_seconds INT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    version BIGINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_media_target ON media_asset_references(target_id, asset_type);
+
+CREATE TABLE IF NOT EXISTS collections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE,
+    display_order INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS collection_titles (
+    collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (collection_id, title_id)
+);
+
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL UNIQUE,
+    event_type VARCHAR(100) NOT NULL,
+    producer VARCHAR(100) NOT NULL,
+    correlation_id UUID NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMP WITH TIME ZONE
+);
+CREATE INDEX IF NOT EXISTS idx_content_outbox_status ON outbox_events(status, created_at);
+
 INSERT INTO media_asset_references (id, target_id, asset_type, status, master_playlist_url, duration_seconds) VALUES
     ('e0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'MAIN_VIDEO', 'READY', 'hls/titles/cosmic-odyssey/master.m3u8', 7200),
     ('e0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000002', 'MAIN_VIDEO', 'READY', 'hls/titles/shadow-protocol/master.m3u8', 6840),

@@ -45,6 +45,7 @@ public class MultiSchemaFlywayMigrationConfig {
                             .table("flyway_schema_history")
                             .locations("classpath:db/migration/" + schema)
                             .baselineOnMigrate(true)
+                            .baselineVersion("0")
                             .outOfOrder(true)
                             .load();
                     flyway.repair();
