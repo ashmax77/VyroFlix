@@ -88,4 +88,38 @@ class DatabaseUrlEnvironmentPostProcessorTest {
             System.clearProperty("SPRING_DATASOURCE_USERNAME");
         }
     }
+
+    @Test
+    @DisplayName("Clears raw token from spring.data.redis.url and assigns to password")
+    void clearsRawTokenFromRedisUrl() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("UPSTASH_REDIS_URL", "d241f478f47502f87b41155e8706c3a7");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.data.redis.url")).isEmpty();
+            assertThat(env.getProperty("spring.data.redis.password")).isEqualTo("d241f478f47502f87b41155e8706c3a7");
+        } finally {
+            System.clearProperty("UPSTASH_REDIS_URL");
+        }
+    }
+
+    @Test
+    @DisplayName("Constructs valid rediss URL from UPSTASH_REDIS_REST_URL and raw token")
+    void constructsRedissUrlFromRestUrlAndToken() {
+        ConfigurableEnvironment env = new StandardEnvironment();
+        System.setProperty("UPSTASH_REDIS_URL", "d241f478f47502f87b41155e8706c3a7");
+        System.setProperty("UPSTASH_REDIS_REST_URL", "https://humorous-gorilla-12345.upstash.io");
+
+        try {
+            processor.postProcessEnvironment(env, application);
+
+            assertThat(env.getProperty("spring.data.redis.url"))
+                    .isEqualTo("rediss://default:d241f478f47502f87b41155e8706c3a7@humorous-gorilla-12345.upstash.io:6379");
+        } finally {
+            System.clearProperty("UPSTASH_REDIS_URL");
+            System.clearProperty("UPSTASH_REDIS_REST_URL");
+        }
+    }
 }

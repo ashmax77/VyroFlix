@@ -30,6 +30,17 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        Map<String, Object> overrides = new HashMap<>();
+
+        normalizeDatasourceUrl(environment, overrides);
+        normalizeRedisUrl(environment, overrides);
+
+        if (!overrides.isEmpty()) {
+            environment.getPropertySources().addFirst(new MapPropertySource("databaseUrlNormalizer", overrides));
+        }
+    }
+
+    private void normalizeDatasourceUrl(ConfigurableEnvironment environment, Map<String, Object> overrides) {
         String rawUrl = environment.getProperty(SPRING_DATASOURCE_URL);
         if (rawUrl == null || rawUrl.isBlank()) {
             rawUrl = environment.getProperty("SPRING_DATASOURCE_URL");
@@ -38,8 +49,6 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
         if (rawUrl == null || rawUrl.isBlank()) {
             return;
         }
-
-        Map<String, Object> overrides = new HashMap<>();
 
         // If URL starts with postgresql:// or postgres:// without jdbc:
         String workUrl = rawUrl.trim();
@@ -159,9 +168,76 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
         } else if (!workUrl.startsWith("jdbc:")) {
             overrides.put(SPRING_DATASOURCE_URL, "jdbc:" + workUrl);
         }
+    }
 
-        if (!overrides.isEmpty()) {
-            environment.getPropertySources().addFirst(new MapPropertySource("databaseUrlNormalizer", overrides));
+    private void normalizeRedisUrl(ConfigurableEnvironment environment, Map<String, Object> overrides) {
+        String redisUrl = environment.getProperty("spring.data.redis.url");
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = environment.getProperty("UPSTASH_REDIS_URL");
+        }
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = System.getenv("UPSTASH_REDIS_URL");
+        }
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = System.getenv("SPRING_DATA_REDIS_URL");
+        }
+        if (redisUrl == null || redisUrl.isBlank()) {
+            return;
+        }
+
+        redisUrl = redisUrl.trim();
+        if (redisUrl.startsWith("redis://") || redisUrl.startsWith("rediss://")) {
+            return;
+        }
+
+        if (redisUrl.startsWith("https://") || redisUrl.startsWith("http://")) {
+            try {
+                URI uri = URI.create(redisUrl);
+                String scheme = redisUrl.startsWith("https://") ? "rediss://" : "redis://";
+                String host = uri.getHost();
+                int port = uri.getPort() > 0 ? uri.getPort() : 6379;
+                String userInfo = uri.getUserInfo();
+                String fixed = scheme + (userInfo != null && !userInfo.isBlank() ? userInfo + "@" : "") + host + ":" + port;
+                overrides.put("spring.data.redis.url", fixed);
+                log.info("Normalized HTTP Redis URL to valid Redis protocol: {}{}:{}", scheme, host, port);
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        // If it's a raw token / password (does not contain '://')
+        if (!redisUrl.contains("://")) {
+            String restUrl = environment.getProperty("UPSTASH_REDIS_REST_URL");
+            if (restUrl == null || restUrl.isBlank()) {
+                restUrl = System.getenv("UPSTASH_REDIS_REST_URL");
+            }
+            if (restUrl != null && !restUrl.isBlank()) {
+                try {
+                    URI u = URI.create(restUrl.trim());
+                    String host = u.getHost();
+                    if (host != null && !host.isBlank()) {
+                        String constructed = "rediss://default:" + redisUrl + "@" + host + ":6379";
+                        overrides.put("spring.data.redis.url", constructed);
+                        log.info("Constructed valid rediss URL from UPSTASH_REDIS_REST_URL: rediss://default:***@{}:6379", host);
+                        return;
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            String host = environment.getProperty("REDIS_HOST");
+            if (host == null || host.isBlank() || host.equals("localhost")) {
+                host = System.getenv("REDIS_HOST");
+            }
+            if (host != null && !host.isBlank() && !host.equals("localhost")) {
+                String constructed = "rediss://default:" + redisUrl + "@" + host.trim() + ":6379";
+                overrides.put("spring.data.redis.url", constructed);
+                log.info("Constructed valid rediss URL from REDIS_HOST: rediss://default:***@{}:6379", host);
+                return;
+            }
+
+            // Clear invalid URL to prevent Lettuce crash, and assign to password
+            overrides.put("spring.data.redis.url", "");
+            overrides.put("spring.data.redis.password", redisUrl);
+            log.warn("Invalid Redis URL detected (raw token provided). Cleared spring.data.redis.url to prevent Lettuce crash. Set spring.data.redis.password.");
         }
     }
 

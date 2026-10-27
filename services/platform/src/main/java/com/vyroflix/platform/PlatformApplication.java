@@ -29,6 +29,7 @@ public class PlatformApplication {
 
     public static void main(String[] args) {
         sanitizeDatasourceUrl();
+        sanitizeRedisUrl();
         SpringApplication.run(PlatformApplication.class, args);
     }
 
@@ -130,6 +131,67 @@ public class PlatformApplication {
             }
         } else if (!workUrl.startsWith("jdbc:")) {
             System.setProperty("spring.datasource.url", "jdbc:" + workUrl);
+        }
+    }
+
+    private static void sanitizeRedisUrl() {
+        String redisUrl = System.getProperty("spring.data.redis.url");
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = System.getenv("UPSTASH_REDIS_URL");
+        }
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = System.getenv("SPRING_DATA_REDIS_URL");
+        }
+        if (redisUrl == null || redisUrl.isBlank()) {
+            return;
+        }
+
+        redisUrl = redisUrl.trim();
+        if (redisUrl.startsWith("redis://") || redisUrl.startsWith("rediss://")) {
+            return;
+        }
+
+        if (redisUrl.startsWith("https://") || redisUrl.startsWith("http://")) {
+            try {
+                java.net.URI uri = java.net.URI.create(redisUrl);
+                String scheme = redisUrl.startsWith("https://") ? "rediss://" : "redis://";
+                String host = uri.getHost();
+                int port = uri.getPort() > 0 ? uri.getPort() : 6379;
+                String userInfo = uri.getUserInfo();
+                String fixed = scheme + (userInfo != null && !userInfo.isBlank() ? userInfo + "@" : "") + host + ":" + port;
+                System.setProperty("spring.data.redis.url", fixed);
+                System.out.println("[VyroFlix] Normalized HTTP Redis URL to: " + scheme + host + ":" + port);
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        // If it's a raw token / password (does not contain '://')
+        if (!redisUrl.contains("://")) {
+            String restUrl = System.getenv("UPSTASH_REDIS_REST_URL");
+            if (restUrl != null && !restUrl.isBlank()) {
+                try {
+                    java.net.URI u = java.net.URI.create(restUrl.trim());
+                    String host = u.getHost();
+                    if (host != null && !host.isBlank()) {
+                        String constructed = "rediss://default:" + redisUrl + "@" + host + ":6379";
+                        System.setProperty("spring.data.redis.url", constructed);
+                        System.out.println("[VyroFlix] Constructed valid rediss URL from UPSTASH_REDIS_REST_URL: rediss://default:***@" + host + ":6379");
+                        return;
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            String host = System.getenv("REDIS_HOST");
+            if (host != null && !host.isBlank() && !host.equals("localhost")) {
+                String constructed = "rediss://default:" + redisUrl + "@" + host.trim() + ":6379";
+                System.setProperty("spring.data.redis.url", constructed);
+                System.out.println("[VyroFlix] Constructed valid rediss URL from REDIS_HOST: rediss://default:***@" + host + ":6379");
+                return;
+            }
+
+            System.setProperty("spring.data.redis.url", "");
+            System.setProperty("spring.data.redis.password", redisUrl);
+            System.out.println("[VyroFlix] WARN: Invalid Redis URL detected (raw token provided). Cleared spring.data.redis.url and set spring.data.redis.password.");
         }
     }
 }
