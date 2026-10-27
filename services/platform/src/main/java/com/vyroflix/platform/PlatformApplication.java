@@ -189,9 +189,9 @@ public class PlatformApplication {
                 return;
             }
 
-            System.setProperty("spring.data.redis.url", "");
+            System.setProperty("spring.data.redis.url", "redis://localhost:6379");
             System.setProperty("spring.data.redis.password", redisUrl);
-            System.out.println("[VyroFlix] WARN: Invalid Redis URL detected (raw token provided). Cleared spring.data.redis.url and set spring.data.redis.password.");
+            System.out.println("[VyroFlix] WARN: Invalid Redis URL detected (raw token provided). Setting fallback redis://localhost:6379 with password to prevent Lettuce scheme 'null' crash.");
         }
     }
 }

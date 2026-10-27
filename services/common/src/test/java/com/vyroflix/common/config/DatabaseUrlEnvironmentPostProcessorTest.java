@@ -98,7 +98,7 @@ class DatabaseUrlEnvironmentPostProcessorTest {
         try {
             processor.postProcessEnvironment(env, application);
 
-            assertThat(env.getProperty("spring.data.redis.url")).isEmpty();
+            assertThat(env.getProperty("spring.data.redis.url")).isEqualTo("redis://localhost:6379");
             assertThat(env.getProperty("spring.data.redis.password")).isEqualTo("d241f478f47502f87b41155e8706c3a7");
         } finally {
             System.clearProperty("UPSTASH_REDIS_URL");

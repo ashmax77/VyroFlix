@@ -43,7 +43,8 @@ spring:
 
   data:
     redis:
-      url: ${UPSTASH_REDIS_URL:}
+      # Note: spring.data.redis.url is dynamically injected by DatabaseUrlEnvironmentPostProcessor
+      # when UPSTASH_REDIS_URL or SPRING_DATA_REDIS_URL is provided, avoiding empty string crashes.
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}

@@ -187,6 +187,7 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
 
         redisUrl = redisUrl.trim();
         if (redisUrl.startsWith("redis://") || redisUrl.startsWith("rediss://")) {
+            overrides.put("spring.data.redis.url", redisUrl);
             return;
         }
 
@@ -234,10 +235,11 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
                 return;
             }
 
-            // Clear invalid URL to prevent Lettuce crash, and assign to password
-            overrides.put("spring.data.redis.url", "");
+            // Fallback: Use valid localhost URL with token as password.
+            // Never set spring.data.redis.url to empty string ("") as Lettuce parses it as a URI with scheme null and crashes.
+            overrides.put("spring.data.redis.url", "redis://localhost:6379");
             overrides.put("spring.data.redis.password", redisUrl);
-            log.warn("Invalid Redis URL detected (raw token provided). Cleared spring.data.redis.url to prevent Lettuce crash. Set spring.data.redis.password.");
+            log.warn("Invalid Redis URL detected (raw token provided). Setting fallback redis://localhost:6379 with password to prevent Lettuce scheme 'null' crash.");
         }
     }
 
