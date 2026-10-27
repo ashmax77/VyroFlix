@@ -101,6 +101,40 @@ INSERT INTO title_genres (title_id, genre_id) VALUES
 ON CONFLICT DO NOTHING;
 
 -- 5. Seed Seasons & Episodes for Series
+ALTER TABLE seasons ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE seasons ADD COLUMN IF NOT EXISTS overview TEXT;
+ALTER TABLE seasons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'title') THEN
+        UPDATE seasons SET name = COALESCE(name, title) WHERE name IS NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'synopsis') THEN
+        UPDATE seasons SET overview = COALESCE(overview, synopsis) WHERE overview IS NULL;
+    END IF;
+END $$;
+
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS overview TEXT;
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS duration_seconds INT;
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(500);
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS publication_state VARCHAR(20) DEFAULT 'DRAFT';
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'title') THEN
+        UPDATE episodes SET name = COALESCE(name, title) WHERE name IS NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'synopsis') THEN
+        UPDATE episodes SET overview = COALESCE(overview, synopsis) WHERE overview IS NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'duration_minutes') THEN
+        UPDATE episodes SET duration_seconds = COALESCE(duration_seconds, duration_minutes * 60) WHERE duration_seconds IS NULL;
+    END IF;
+END $$;
+
 INSERT INTO seasons (id, title_id, season_number, name, overview) VALUES
     ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000007', 1, 'Season 1', 'The mystery unfolds in London foggy streets.'),
     ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000008', 1, 'Season 1', 'The awakening of the mythical stones.')

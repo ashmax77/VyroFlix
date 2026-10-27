@@ -47,6 +47,7 @@ public class MultiSchemaFlywayMigrationConfig {
                             .baselineOnMigrate(true)
                             .outOfOrder(true)
                             .load();
+                    flyway.repair();
                     flyway.migrate();
                     log.info("[VyroFlix] Completed Flyway migration for schema: {}", schema);
                 } catch (Exception e) {
