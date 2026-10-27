@@ -108,9 +108,13 @@ ALTER TABLE seasons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'title') THEN
+        ALTER TABLE seasons ALTER COLUMN title DROP NOT NULL;
+        ALTER TABLE seasons ALTER COLUMN title SET DEFAULT '';
         UPDATE seasons SET name = COALESCE(name, title) WHERE name IS NULL;
     END IF;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'synopsis') THEN
+        ALTER TABLE seasons ALTER COLUMN synopsis DROP NOT NULL;
+        ALTER TABLE seasons ALTER COLUMN synopsis SET DEFAULT '';
         UPDATE seasons SET overview = COALESCE(overview, synopsis) WHERE overview IS NULL;
     END IF;
 END $$;
@@ -125,12 +129,18 @@ ALTER TABLE episodes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZON
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'title') THEN
+        ALTER TABLE episodes ALTER COLUMN title DROP NOT NULL;
+        ALTER TABLE episodes ALTER COLUMN title SET DEFAULT '';
         UPDATE episodes SET name = COALESCE(name, title) WHERE name IS NULL;
     END IF;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'synopsis') THEN
+        ALTER TABLE episodes ALTER COLUMN synopsis DROP NOT NULL;
+        ALTER TABLE episodes ALTER COLUMN synopsis SET DEFAULT '';
         UPDATE episodes SET overview = COALESCE(overview, synopsis) WHERE overview IS NULL;
     END IF;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'duration_minutes') THEN
+        ALTER TABLE episodes ALTER COLUMN duration_minutes DROP NOT NULL;
+        ALTER TABLE episodes ALTER COLUMN duration_minutes SET DEFAULT 0;
         UPDATE episodes SET duration_seconds = COALESCE(duration_seconds, duration_minutes * 60) WHERE duration_seconds IS NULL;
     END IF;
 END $$;
@@ -145,6 +155,25 @@ INSERT INTO episodes (id, season_id, episode_number, name, overview, duration_se
     ('d0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 2, 'The Cipher Key', 'Decrypting a clandestine syndicate journal leads to unexpected betrayal.', 2940, 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=600', 'PUBLISHED'),
     ('d0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002', 1, 'The Gathering of Realms', 'Emissaries from each kingdom convene under the solar eclipse.', 3400, 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600', 'PUBLISHED')
 ON CONFLICT (id) DO NOTHING;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'title') THEN
+        UPDATE seasons SET title = name WHERE title IS NULL OR title = '';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'seasons' AND column_name = 'synopsis') THEN
+        UPDATE seasons SET synopsis = overview WHERE synopsis IS NULL OR synopsis = '';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'title') THEN
+        UPDATE episodes SET title = name WHERE title IS NULL OR title = '';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'synopsis') THEN
+        UPDATE episodes SET synopsis = overview WHERE synopsis IS NULL OR synopsis = '';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'content' AND table_name = 'episodes' AND column_name = 'duration_minutes') THEN
+        UPDATE episodes SET duration_minutes = COALESCE(duration_seconds / 60, 0) WHERE duration_minutes IS NULL OR duration_minutes = 0;
+    END IF;
+END $$;
 
 -- 6. Media Asset References (READY status with HLS master playlist paths)
 INSERT INTO media_asset_references (id, target_id, asset_type, status, master_playlist_url, duration_seconds) VALUES
