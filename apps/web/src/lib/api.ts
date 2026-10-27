@@ -157,13 +157,12 @@ export async function createPlaybackSession(
   contentId: string,
   targetType: 'MOVIE' | 'EPISODE' = 'MOVIE'
 ): Promise<PlaybackSession> {
-  const userId = getStoredUserId();
   try {
     const res = await fetch(`${API_BASE}/streaming/sessions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': userId,
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
         contentId,
@@ -193,13 +192,12 @@ export async function saveProgress(data: {
   positionSeconds: number;
   durationSeconds: number;
 }): Promise<ViewingProgress | null> {
-  const userId = getStoredUserId();
   try {
     const res = await fetch(`${API_BASE}/history/progress`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': userId,
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(data),
     });
@@ -216,7 +214,7 @@ export async function fetchContinueWatching(): Promise<ViewingProgress[]> {
   const userId = getStoredUserId();
   try {
     const res = await fetch(`${API_BASE}/history/continue-watching`, {
-      headers: { 'X-User-Id': userId },
+      headers: getAuthHeaders(),
     });
     if (res.ok) {
       const data: ViewingProgress[] = await res.json();
@@ -261,7 +259,7 @@ export async function fetchWatchlist(): Promise<WatchlistEntry[]> {
   const userId = getStoredUserId();
   try {
     const res = await fetch(`${API_BASE}/history/watchlist`, {
-      headers: { 'X-User-Id': userId },
+      headers: getAuthHeaders(),
     });
     if (res.ok) {
       const data: WatchlistEntry[] = await res.json();
@@ -293,12 +291,11 @@ export async function fetchWatchlist(): Promise<WatchlistEntry[]> {
 }
 
 export async function toggleWatchlist(titleId: string, inWatchlist: boolean): Promise<boolean> {
-  const userId = getStoredUserId();
   try {
     if (inWatchlist) {
       await fetch(`${API_BASE}/history/watchlist/${titleId}`, {
         method: 'DELETE',
-        headers: { 'X-User-Id': userId },
+        headers: getAuthHeaders(),
       });
       return false;
     } else {
@@ -306,7 +303,7 @@ export async function toggleWatchlist(titleId: string, inWatchlist: boolean): Pr
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-User-Id': userId,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ titleId }),
       });
@@ -318,10 +315,9 @@ export async function toggleWatchlist(titleId: string, inWatchlist: boolean): Pr
 }
 
 export async function checkWatchlist(titleId: string): Promise<boolean> {
-  const userId = getStoredUserId();
   try {
     const res = await fetch(`${API_BASE}/history/watchlist/${titleId}/check`, {
-      headers: { 'X-User-Id': userId },
+      headers: getAuthHeaders(),
     });
     if (res.ok) {
       const data = await res.json();
@@ -397,12 +393,11 @@ export async function createUploadIntent(data: {
   contentType: string;
   fileSizeBytes: number;
 }): Promise<UploadIntentResponse> {
-  const userId = getStoredUserId();
   const res = await fetch(`${API_BASE}/videos/upload-intents`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-User-Id': userId,
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(data),
   });
@@ -460,9 +455,7 @@ export function uploadFileDirectToStorage(
 export async function completeUploadIntent(intentId: string): Promise<UploadIntentResponse> {
   const res = await fetch(`${API_BASE}/videos/upload-intents/${intentId}/complete`, {
     method: 'PUT',
-    headers: {
-      'X-User-Id': getStoredUserId(),
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
@@ -478,7 +471,9 @@ export async function completeUploadIntent(intentId: string): Promise<UploadInte
 export async function getEncodingJobs(status?: EncodingStatus): Promise<EncodingJob[]> {
   try {
     const query = status ? `?status=${status}` : '';
-    const res = await fetch(`${API_BASE}/encoding/jobs${query}`);
+    const res = await fetch(`${API_BASE}/encoding/jobs${query}`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       const data = await res.json();
       return data.content || data;
@@ -495,9 +490,7 @@ export async function getEncodingJobs(status?: EncodingStatus): Promise<Encoding
 export async function retryEncodingJob(jobId: string): Promise<EncodingJob> {
   const res = await fetch(`${API_BASE}/encoding/jobs/${jobId}/retry`, {
     method: 'POST',
-    headers: {
-      'X-User-Id': getStoredUserId(),
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
@@ -620,9 +613,7 @@ export async function fetchTrendingRail(limit = 10): Promise<Title[]> {
 export async function fetchPersonalRecommendations(limit = 10): Promise<Title[]> {
   try {
     const res = await fetch(`${API_BASE}/recommendations/personal?limit=${limit}`, {
-      headers: {
-        'X-User-Id': getStoredUserId(),
-      },
+      headers: getAuthHeaders(),
     });
     if (res.ok) {
       const data = await res.json();

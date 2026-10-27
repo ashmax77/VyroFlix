@@ -31,16 +31,36 @@ public class StreamingController {
             @Valid @RequestBody CreateSessionRequest request,
             HttpServletRequest servletRequest) {
 
-        UUID userId = resolveUserId(principal);
+        UUID userId = resolveUserId(principal, servletRequest);
         String ipAddress = servletRequest.getRemoteAddr();
 
         PlaybackSessionResponse response = streamingService.createSession(userId, request, ipAddress);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    private UUID resolveUserId(UserPrincipal principal) {
+    private UUID resolveUserId(UserPrincipal principal, HttpServletRequest request) {
         if (principal != null && principal.getUserId() != null) {
             return principal.getUserId();
+        }
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            if (auth.getPrincipal() instanceof UserPrincipal up && up.getUserId() != null) {
+                return up.getUserId();
+            }
+            if (auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt && jwt.getSubject() != null) {
+                try {
+                    return UUID.fromString(jwt.getSubject());
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+        if (request != null) {
+            String headerId = request.getHeader(com.vyroflix.common.util.Constants.HEADER_USER_ID);
+            if (headerId != null && !headerId.isBlank()) {
+                try {
+                    return UUID.fromString(headerId.trim());
+                } catch (IllegalArgumentException ignored) {}
+            }
         }
         throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required to initiate playback session");
     }

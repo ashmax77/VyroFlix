@@ -37,9 +37,7 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
         UserPrincipal principal = extractPrincipal(jwt);
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
 
-        JwtAuthenticationToken token = new JwtAuthenticationToken(jwt, authorities, principal.getName());
-        token.setDetails(principal);
-        return token;
+        return new SupabaseAuthenticationToken(jwt, principal, authorities);
     }
 
     /**

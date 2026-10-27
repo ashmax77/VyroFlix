@@ -89,6 +89,18 @@ public class HistoryController {
         if (principal != null && principal.getUserId() != null) {
             return principal.getUserId();
         }
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            if (auth.getPrincipal() instanceof UserPrincipal up && up.getUserId() != null) {
+                return up.getUserId();
+            }
+            if (auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt && jwt.getSubject() != null) {
+                try {
+                    return UUID.fromString(jwt.getSubject());
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
         throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required for history operations");
     }
 }
