@@ -58,9 +58,41 @@ jobs:
         working-directory: apps/web
         run: npm ci
 
+      - name: Type-check web application
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
       - name: Build web application
         working-directory: apps/web
         run: npm run build
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      # Route-protection and sign-in specs: they need no backend. Browse/playback specs need seeded services.
+      - name: Run guard end-to-end specs
+        working-directory: apps/web
+        run: npx playwright test e2e/auth.spec.ts e2e/watchlist.spec.ts e2e/playback.spec.ts
+
+  # ------------------------------------------------------------
+  # 2b. CDN token Worker (Node 20, no Cloudflare account needed)
+  # ------------------------------------------------------------
+  worker-test:
+    name: HLS Worker Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Worker tests
+        run: node --test infra/cloudflare/hls-worker/test/worker.test.mjs
 
   # ------------------------------------------------------------
   # 3. Docker Compose & Infrastructure Validation
@@ -105,7 +137,7 @@ jobs:
   # ------------------------------------------------------------
   docker-publish:
     name: Build & Publish Container Images
-    needs: [ backend-build, frontend-build, docker-compose-validation ]
+    needs: [ backend-build, frontend-build, worker-test, docker-compose-validation ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
