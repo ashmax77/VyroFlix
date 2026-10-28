@@ -78,10 +78,23 @@ export function rewritePlaylist(text, query) {
     .join('\n');
 }
 
+/**
+ * The player runs on another origin, so media responses carry CORS headers. No credentials are sent:
+ * the token in the URL is the authorisation, so a wildcard origin is safe here.
+ */
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+};
+
+function withCors(headers) {
+  return { ...CORS_HEADERS, ...headers };
+}
+
 function plain(status, message) {
   return new Response(message, {
     status,
-    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: withCors({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }),
   });
 }
 
@@ -91,6 +104,17 @@ function plain(status, message) {
  * @param {number} [nowSeconds] injectable clock for tests
  */
 export async function handleRequest(request, env, nowSeconds = Math.floor(Date.now() / 1000)) {
+  if (request.method === 'OPTIONS') {
+    // Preflight for range requests (Range is not a CORS-safelisted header).
+    return new Response(null, {
+      status: 204,
+      headers: withCors({
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Access-Control-Allow-Headers': 'Range',
+        'Access-Control-Max-Age': '86400',
+      }),
+    });
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return plain(405, 'Method not allowed');
   }
@@ -141,19 +165,19 @@ export async function handleRequest(request, env, nowSeconds = Math.floor(Date.n
     const childSig = await signToken(env.HLS_SIGNING_SECRET, scope, childExp);
     const body = rewritePlaylist(await object.text(), `exp=${childExp}&sig=${childSig}`);
     return new Response(request.method === 'HEAD' ? null : body, {
-      headers: {
+      headers: withCors({
         'Content-Type': 'application/vnd.apple.mpegurl',
         'Cache-Control': 'private, max-age=30',
-      },
+      }),
     });
   }
 
   const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
   return new Response(request.method === 'HEAD' ? null : object.body, {
-    headers: {
+    headers: withCors({
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=86400',
-    },
+    }),
   });
 }
 

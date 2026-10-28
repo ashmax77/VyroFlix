@@ -101,6 +101,21 @@ test('non-media extensions and traversal attempts are not served', async () => {
   assert.equal(traversal.status, 404);
 });
 
+test('media responses are readable cross-origin and preflights are answered', async () => {
+  const env = fakeEnv({ [MASTER]: '#EXTM3U\n' });
+  const ok = await handleRequest(
+    new Request(`https://media.example/${MASTER}?${await tokenQuery(NOW + 60)}`), env, NOW);
+  assert.equal(ok.headers.get('Access-Control-Allow-Origin'), '*');
+
+  const preflight = await handleRequest(
+    new Request(`https://media.example/${MASTER}`, { method: 'OPTIONS' }), env, NOW);
+  assert.equal(preflight.status, 204);
+  assert.match(preflight.headers.get('Access-Control-Allow-Headers'), /Range/);
+
+  const denied = await handleRequest(new Request(`https://media.example/${MASTER}`), env, NOW);
+  assert.equal(denied.headers.get('Access-Control-Allow-Origin'), '*');
+});
+
 test('rewritePlaylist leaves absolute URIs and tags without URIs alone', () => {
   const input = [
     '#EXTM3U',
