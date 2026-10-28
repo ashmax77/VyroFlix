@@ -21,6 +21,16 @@ export interface Title {
   genres?: Genre[];
   tags?: string[];
   seasons?: Season[];
+  /** Present on single-title reads only. */
+  cast?: CastMember[];
+}
+
+export interface CastMember {
+  personId: string;
+  name: string;
+  avatarUrl?: string;
+  role: 'ACTOR' | 'DIRECTOR' | 'WRITER' | 'PRODUCER';
+  characterName?: string;
 }
 
 export interface Season {

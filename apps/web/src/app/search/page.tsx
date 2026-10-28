@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import TitleCard from '../../components/TitleCard';
 import { Title } from '../../types';
 import { ErrorState } from '../../components/common';
-import { ApiError, searchTitles, getSearchSuggestions } from '../../lib/api';
+import { ApiError, searchTitles, getSearchSuggestions, fetchGenres, type GenreOption, type SearchFilters } from '../../lib/api';
 import { Search, X, Film, Tv, Sparkles, Filter, Loader2 } from 'lucide-react';
 
 function SearchContent() {
@@ -24,12 +24,28 @@ function SearchContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Filters are read through a ref by fetchResults, so every existing call site picks them up unchanged.
+  const [filters, setFilters] = useState<SearchFilters>({});
+  const filtersRef = useRef<SearchFilters>({});
+  const [genreOptions, setGenreOptions] = useState<GenreOption[]>([]);
+
+  useEffect(() => {
+    fetchGenres().then(setGenreOptions);
+  }, []);
+
+  const updateFilter = (patch: SearchFilters) => {
+    const next = { ...filtersRef.current, ...patch };
+    filtersRef.current = next;
+    setFilters(next);
+    // Re-run with the current query/type using the new filters (fetchResults is defined below; this runs later, from an event).
+    void fetchResults(query, selectedType);
+  };
 
   const fetchResults = useCallback(async (searchQuery: string, typeFilter: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const page = await searchTitles(searchQuery, typeFilter, 0, 30);
+      const page = await searchTitles(searchQuery, typeFilter, 0, 30, filtersRef.current);
       const mappedTitles: Title[] = page.content.map((item) => ({
         id: item.id,
         type: item.type,
@@ -168,6 +184,54 @@ function SearchContent() {
               </div>
             )}
           </form>
+
+          {/* Genre, maturity and year filters */}
+          <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-text-secondary">
+            <label className="flex items-center gap-2">
+              <span>Genre</span>
+              <select
+                aria-label="Genre"
+                value={filters.genre ?? ''}
+                onChange={(e) => updateFilter({ genre: e.target.value || undefined })}
+                className="rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5 text-white"
+              >
+                <option value="">Any</option>
+                {genreOptions.map((g) => (
+                  <option key={g.id} value={g.slug}>{g.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span>Rating</span>
+              <select
+                aria-label="Maturity rating"
+                value={filters.maturity ?? ''}
+                onChange={(e) => updateFilter({ maturity: e.target.value || undefined })}
+                className="rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5 text-white"
+              >
+                <option value="">Any</option>
+                {['G', 'PG', 'PG-13', 'R', 'TV-MA'].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span>Year</span>
+              <input
+                aria-label="Release year"
+                type="number"
+                min={1880}
+                max={2200}
+                placeholder="Any"
+                value={filters.year ?? ''}
+                onChange={(e) => {
+                  const year = Number(e.target.value);
+                  updateFilter({ year: e.target.value && year >= 1880 && year <= 2200 ? year : undefined });
+                }}
+                className="w-24 rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5 text-white"
+              />
+            </label>
+          </div>
 
           {/* Filter Pills */}
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4">

@@ -10,16 +10,36 @@ import {
   fetchContinueWatching,
   fetchTrendingRail,
   fetchPersonalRecommendations,
+  fetchCollections,
+  type CollectionRail,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { HomeFeed, ViewingProgress, Title } from '@/types';
+
+/** Collection titles are lighter than full titles; fill the fields the card needs. */
+function asCardTitle(item: CollectionRail['titles'][number]): Title {
+  return {
+    id: item.id,
+    type: item.type === 'SERIES' ? 'SERIES' : 'MOVIE',
+    title: item.title,
+    synopsis: '',
+    releaseYear: 0,
+    maturityRating: '',
+    durationMinutes: 0,
+    posterUrl: item.posterUrl ?? '',
+    backdropUrl: item.posterUrl ?? '',
+    publicationState: 'PUBLISHED',
+    tags: [],
+  };
+}
 
 export default function BrowsePage() {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [continueWatching, setContinueWatching] = useState<ViewingProgress[]>([]);
   const [trending, setTrending] = useState<Title[]>([]);
   const [recommended, setRecommended] = useState<Title[]>([]);
+  const [collections, setCollections] = useState<CollectionRail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isAuthed, loading: authLoading } = useAuth();
@@ -45,6 +65,8 @@ export default function BrowsePage() {
       setContinueWatching(progressData);
       setTrending(trendingData);
       setRecommended(recData);
+      // Collections are optional: a failure here must not hide the rest of the page.
+      setCollections(await fetchCollections().catch(() => []));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not load the catalog.');
     } finally {
@@ -128,6 +150,16 @@ export default function BrowsePage() {
             onWatchlistChanged={loadData}
           />
         )}
+
+        {/* Curated collections from the catalog */}
+        {collections.map((collection) => (
+          <ContentRail
+            key={collection.id}
+            title={collection.name}
+            items={collection.titles.map(asCardTitle)}
+            onWatchlistChanged={loadData}
+          />
+        ))}
 
         {/* Dynamic Aggregated Catalog Rails */}
         {feed.rails.map((rail) => (

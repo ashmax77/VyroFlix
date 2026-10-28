@@ -320,10 +320,26 @@ export function retryEncodingJob(jobId: string): Promise<EncodingJob> {
 // Search & recommendations
 // ---------------------------------------------------------------------------
 
-export function searchTitles(query?: string, type?: string, page = 0, size = 20): Promise<SearchResultPage> {
+export interface SearchFilters {
+  /** Genre slug, e.g. "sci-fi". */
+  genre?: string;
+  year?: number;
+  maturity?: string;
+}
+
+export function searchTitles(
+  query?: string,
+  type?: string,
+  page = 0,
+  size = 20,
+  filters: SearchFilters = {},
+): Promise<SearchResultPage> {
   const params = new URLSearchParams();
   if (query?.trim()) params.append('q', query.trim());
   if (type?.trim()) params.append('type', type.trim());
+  if (filters.genre?.trim()) params.append('genre', filters.genre.trim());
+  if (filters.year) params.append('year', String(filters.year));
+  if (filters.maturity?.trim()) params.append('maturity', filters.maturity.trim());
   params.append('page', page.toString());
   params.append('size', size.toString());
   return request<SearchResultPage>(`/search?${params.toString()}`);
@@ -390,6 +406,109 @@ export async function fetchSimilarTitles(titleId: string, limit = 10): Promise<T
     return railToTitles(await request(`/recommendations/similar/${encodeURIComponent(titleId)}?limit=${limit}`));
   } catch (e) {
     console.warn('Similar titles unavailable:', e instanceof ApiError ? e.status : e);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Playback lifecycle & analytics
+// ---------------------------------------------------------------------------
+
+/**
+ * Ends a playback session. Sent with keepalive so it can complete while the page unloads.
+ * Best effort: a failure only means the session expires on its own.
+ */
+export async function endPlaybackSession(sessionId: string): Promise<void> {
+  try {
+    await request<void>(`/streaming/sessions/${encodeURIComponent(sessionId)}/end`, {
+      method: 'POST',
+      auth: true,
+      keepalive: true,
+    });
+  } catch {
+    // ignored: sessions also expire server-side
+  }
+}
+
+export interface CatalogStats {
+  totalTitles: number;
+  byType: Record<string, number>;
+  byPublicationState: Record<string, number>;
+}
+
+export interface PlaybackStats {
+  activeSessions: number;
+  daily: { date: string; sessions: number }[];
+}
+
+export function fetchCatalogStats(): Promise<CatalogStats> {
+  return request<CatalogStats>('/admin/stats/catalog', { auth: true });
+}
+
+export function fetchPlaybackStats(days = 7): Promise<PlaybackStats> {
+  return request<PlaybackStats>(`/admin/stats/playback?days=${days}`, { auth: true });
+}
+
+export function fetchEncodingStats(): Promise<Record<string, number>> {
+  return request<Record<string, number>>('/encoding/stats', { auth: true });
+}
+
+// ---------------------------------------------------------------------------
+// Admin: title lifecycle
+// ---------------------------------------------------------------------------
+
+export interface TitleInput {
+  title: string;
+  type: 'MOVIE' | 'SERIES';
+  synopsis?: string;
+  releaseYear?: number;
+  maturityRating?: string;
+  posterUrl?: string;
+}
+
+export function createTitle(input: TitleInput): Promise<Title> {
+  return request<Title>('/admin/titles', { method: 'POST', auth: true, body: input });
+}
+
+export function publishTitle(id: string): Promise<Title> {
+  return request<Title>(`/admin/titles/${encodeURIComponent(id)}/publish`, { method: 'POST', auth: true });
+}
+
+export function unpublishTitle(id: string): Promise<Title> {
+  return request<Title>(`/admin/titles/${encodeURIComponent(id)}/unpublish`, { method: 'POST', auth: true });
+}
+
+/** Only unpublished titles can be deleted; the API answers 409 for a published one. */
+export function deleteTitle(id: string): Promise<void> {
+  return request<void>(`/admin/titles/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true });
+}
+
+// ---------------------------------------------------------------------------
+// Collections & genres
+// ---------------------------------------------------------------------------
+
+export interface CollectionRail {
+  id: string;
+  name: string;
+  slug: string;
+  displayOrder: number;
+  titles: { id: string; title: string; type: string; posterUrl?: string; publicationState?: string }[];
+}
+
+export function fetchCollections(): Promise<CollectionRail[]> {
+  return request<CollectionRail[]>('/catalog/collections');
+}
+
+export interface GenreOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export async function fetchGenres(): Promise<GenreOption[]> {
+  try {
+    return await request<GenreOption[]>('/catalog/genres');
+  } catch {
     return [];
   }
 }

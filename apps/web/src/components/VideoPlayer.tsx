@@ -16,7 +16,7 @@ import {
   Settings,
   Loader2,
 } from 'lucide-react';
-import { ApiError, createPlaybackSession, saveProgress } from '../lib/api';
+import { ApiError, createPlaybackSession, endPlaybackSession, saveProgress } from '../lib/api';
 import { formatTime } from '../lib/utils';
 import { Title } from '../types';
 
@@ -43,6 +43,8 @@ export default function VideoPlayer({
   const hlsRef = useRef<Hls | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // The playback session this player currently holds; ended when it is replaced, unmounted or the page is left.
+  const activeSessionIdRef = useRef<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -85,9 +87,22 @@ export default function VideoPlayer({
     let sessionRefreshes = 0;
     const MAX_SESSION_REFRESHES = 2;
 
+    function endActiveSession() {
+      const id = activeSessionIdRef.current;
+      activeSessionIdRef.current = null;
+      if (id) void endPlaybackSession(id);
+    }
+
     async function startSession() {
       const session = await createPlaybackSession(contentId, targetType);
-      if (isCancelled || !videoRef.current) return null;
+      if (isCancelled || !videoRef.current) {
+        // Created but never used (the player unmounted first): release it.
+        void endPlaybackSession(session.sessionId);
+        return null;
+      }
+      // A refresh replaces the previous session; end it so it stops counting against the plan's stream limit.
+      endActiveSession();
+      activeSessionIdRef.current = session.sessionId;
       return session;
     }
 
@@ -202,7 +217,12 @@ export default function VideoPlayer({
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush();
     };
-    window.addEventListener('pagehide', flush);
+    // Leaving the page ends the session. Merely hiding the tab does not, because the viewer may come back.
+    const onPageHide = () => {
+      flush();
+      endActiveSession();
+    };
+    window.addEventListener('pagehide', onPageHide);
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
@@ -210,9 +230,10 @@ export default function VideoPlayer({
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
-      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('pagehide', onPageHide);
       document.removeEventListener('visibilitychange', onVisibility);
       sendHeartbeat({ keepalive: true }); // final best effort (navigation away)
+      endActiveSession();
       if (hlsInstance) {
         hlsInstance.destroy();
       }

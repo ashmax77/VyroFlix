@@ -185,6 +185,24 @@ export default function TitleDetailsPage() {
               <p className="text-text-secondary text-sm leading-relaxed">{title.synopsis}</p>
             </div>
 
+            {/* Cast & crew (from the single-title read) */}
+            {title.cast && title.cast.length > 0 && (
+              <div className="glass-panel p-6 rounded-card border border-border mb-8">
+                <h3 className="font-heading font-bold text-base text-white mb-3">Cast &amp; crew</h3>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
+                  {title.cast.map((member) => (
+                    <li key={`${member.personId}-${member.role}`} className="flex justify-between gap-3">
+                      <span className="text-white">{member.name}</span>
+                      <span className="text-text-muted text-xs">
+                        {member.characterName ? `${member.characterName} · ` : ''}
+                        {member.role.charAt(0) + member.role.slice(1).toLowerCase()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Seasons & Episodes (if series) */}
             {title.type === 'SERIES' && title.seasons && title.seasons.length > 0 && (
               <div className="glass-panel p-6 rounded-card border border-border mb-8">
