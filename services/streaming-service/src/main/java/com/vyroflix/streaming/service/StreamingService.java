@@ -59,6 +59,7 @@ public class StreamingService {
     private final PlaybackUrlSigner urlSigner;
     private final HistoryProgressClient historyProgressClient;
     private final TransactionTemplate transactionTemplate;
+    private final PlaybackMetrics metrics;
     private final StringRedisTemplate redisTemplate;
     private final OutboxService outboxService;
 
@@ -69,6 +70,7 @@ public class StreamingService {
             PlaybackUrlSigner urlSigner,
             HistoryProgressClient historyProgressClient,
             TransactionTemplate transactionTemplate,
+            PlaybackMetrics metrics,
             @Autowired(required = false) StringRedisTemplate redisTemplate,
             @Autowired(required = false) OutboxService outboxService) {
         this.playbackSessionRepository = playbackSessionRepository;
@@ -77,6 +79,7 @@ public class StreamingService {
         this.urlSigner = urlSigner;
         this.historyProgressClient = historyProgressClient;
         this.transactionTemplate = transactionTemplate;
+        this.metrics = metrics;
         this.redisTemplate = redisTemplate;
         this.outboxService = outboxService;
     }
@@ -100,8 +103,10 @@ public class StreamingService {
 
         requireAvailable(contentId, targetType);
 
-        String playlistKey = resolveMasterPlaylistKey(contentId)
-                .orElseThrow(() -> new ApiException(ErrorCode.ASSET_NOT_READY, "Media is not ready for playback"));
+        String playlistKey = resolveMasterPlaylistKey(contentId).orElseThrow(() -> {
+            metrics.denied("not_ready");
+            return new ApiException(ErrorCode.ASSET_NOT_READY, "Media is not ready for playback");
+        });
 
         int resumeAt = historyProgressClient.resumePositionSeconds(contentId, authorizationHeader);
         String manifestUrl = urlSigner.sign(playlistKey, PLAYBACK_SESSION_TTL);
@@ -123,6 +128,7 @@ public class StreamingService {
             return session;
         });
 
+        metrics.allowed();
         log.info("Playback session [{}] created for content [{}] (plan={}, resume={}s)",
                 saved.getId(), contentId, plan, resumeAt);
 
@@ -190,6 +196,7 @@ public class StreamingService {
             available = row.getParentId() == null;
         }
         if (!available) {
+            metrics.denied("not_available");
             // Same response for "unknown" and "unpublished" so drafts are not enumerable.
             throw new ApiException(ErrorCode.TITLE_NOT_FOUND, "Title is not available for playback");
         }
@@ -199,6 +206,7 @@ public class StreamingService {
         int limit = CONCURRENT_STREAM_LIMITS.getOrDefault(normalizePlan(plan), 1);
         long active = playbackSessionRepository.countByUserIdAndEndedAtIsNullAndExpiresAtAfter(userId, now);
         if (active >= limit) {
+            metrics.denied("concurrency");
             throw new ApiException(ErrorCode.CONCURRENT_STREAM_LIMIT,
                     "Your plan allows " + limit + " concurrent stream(s). End another stream and try again.");
         }
@@ -216,6 +224,7 @@ public class StreamingService {
     private Optional<String> resolveMasterPlaylistKey(UUID contentId) {
         String cacheKey = REDIS_PLAYLIST_KEY_PREFIX + contentId;
         String cached = readRedis(cacheKey);
+        metrics.keyLookup(cached != null);
         if (cached != null) {
             return Optional.of(cached);
         }

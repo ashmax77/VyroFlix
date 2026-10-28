@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -74,6 +75,7 @@ class StreamingServiceTest {
                 urlSigner,
                 historyProgressClient,
                 new TransactionTemplate(txManager),
+                new PlaybackMetrics(new SimpleMeterRegistry()),
                 redisTemplate,
                 outboxService);
     }
