@@ -1,0 +1,28 @@
+name: Keep backend awake
+
+# Render Free spins the backend down after ~15 minutes without traffic. This pings the health endpoint
+# every 10 minutes so the first real visitor does not wait for a cold start. GitHub scheduled runs can be
+# delayed under load; the frontend's wake-up hint covers any remaining cold starts.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /actuator/health
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "Repository variable BACKEND_URL is not set; skipping keep-alive."
+            exit 0
+          fi
+          curl --silent --show-error --fail --max-time 90 --retry 2 --retry-delay 5 \
+            -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
+            "${BACKEND_URL%/}/actuator/health"

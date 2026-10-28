@@ -59,9 +59,15 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
 # - UseSerialGC minimizes GC heap/thread overhead compared to G1GC
 # - -Xmx384m reserves 128MB headroom for JVM native memory, metaspace, and OS
 ENTRYPOINT ["java", \
-  "-Xmx384m", \
+  "-Xms64m", \
+  "-Xmx320m", \
+  "-Xss512k", \
+  "-XX:MaxMetaspaceSize=160m", \
+  "-XX:ReservedCodeCacheSize=48m", \
+  "-XX:CICompilerCount=2", \
   "-XX:+UseSerialGC", \
   "-XX:+ExitOnOutOfMemoryError", \
+  "-Dspring.jmx.enabled=false", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-Dspring.profiles.active=render", \
   "-jar", "/app/app.jar"]

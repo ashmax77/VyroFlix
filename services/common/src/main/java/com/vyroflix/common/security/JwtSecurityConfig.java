@@ -122,6 +122,8 @@ public class JwtSecurityConfig {
             }
             auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
             auth.requestMatchers("/actuator/health/**", "/actuator/info").permitAll();
+            // API description only (no data): lets reviewers and operators read the contract.
+            auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/recommendations/personal").authenticated();
