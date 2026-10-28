@@ -4,6 +4,7 @@ import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,9 +33,19 @@ public class MultiSchemaFlywayMigrationConfig {
             "recommendation"
     };
 
+    /**
+     * Applies each domain's migrations in its own schema, in version order. No repair and no out-of-order
+     * execution: a changed or missing migration fails the boot loudly instead of being papered over.
+     * baselineOnMigrate only matters for a schema whose history table does not exist yet.
+     */
     @Bean
-    public FlywayMigrationStrategy multiSchemaFlywayMigrationStrategy(DataSource dataSource) {
+    public FlywayMigrationStrategy multiSchemaFlywayMigrationStrategy(ObjectProvider<DataSource> dataSourceProvider) {
         return defaultFlyway -> {
+            DataSource dataSource = dataSourceProvider.getIfAvailable();
+            if (dataSource == null) {
+                log.warn("[VyroFlix] No DataSource available; skipping schema migrations");
+                return;
+            }
             for (String schema : SCHEMAS) {
                 try {
                     log.info("[VyroFlix] Executing Flyway migration for schema: {}", schema);
@@ -46,9 +57,8 @@ public class MultiSchemaFlywayMigrationConfig {
                             .locations("classpath:db/migration/" + schema)
                             .baselineOnMigrate(true)
                             .baselineVersion("0")
-                            .outOfOrder(true)
+                            .outOfOrder(false)
                             .load();
-                    flyway.repair();
                     flyway.migrate();
                     log.info("[VyroFlix] Completed Flyway migration for schema: {}", schema);
                 } catch (Exception e) {

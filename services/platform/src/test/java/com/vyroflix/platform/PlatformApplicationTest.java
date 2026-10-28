@@ -32,6 +32,18 @@ class PlatformApplicationTest {
     private CatalogService catalogService;
 
     @MockBean
+    private com.vyroflix.content.service.CastService castService;
+
+    @MockBean
+    private com.vyroflix.content.service.CollectionService collectionService;
+
+    @MockBean
+    private com.vyroflix.encoding.repository.EncodingJobRepository encodingJobRepository;
+
+    @MockBean
+    private com.vyroflix.recommendation.service.RecommendationEventProcessor recommendationEventProcessor;
+
+    @MockBean
     private StreamingService streamingService;
 
     @MockBean
