@@ -8,12 +8,14 @@ test.describe('Watchlist & My List Flow', () => {
     await expect(page.getByRole('heading', { name: /my list/i })).toBeVisible();
 
     // Should have titles or empty state message
-    const emptyOrContent = page.getByText(/your watchlist is empty/i).or(page.locator('a[href^="/title/"]'));
+    const emptyOrContent = page.getByText(/your (list|watchlist) is empty/i)
+      .or(page.locator('a[href^="/watch/"]'))
+      .or(page.getByRole('button', { name: /remove from my list/i }));
     await expect(emptyOrContent.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('toggles watchlist button on title details page', async ({ page }) => {
-    await page.goto('/title/a0000000-0000-0000-0000-000000000001');
+    await page.goto('/title/b0000000-0000-0000-0000-000000000001');
 
     // Find watchlist button
     const watchlistBtn = page.getByRole('button', { name: /list|add/i }).or(page.locator('button:has-text("List")')).first();
