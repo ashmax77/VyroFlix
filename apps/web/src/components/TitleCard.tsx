@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Play, Plus, Check, Info } from 'lucide-react';
 import { Title, ViewingProgress } from '../types';
-import { toggleWatchlist } from '../lib/api';
+import { ApiError, redirectToLogin, toggleWatchlist } from '../lib/api';
 
 interface TitleCardProps {
   title: Title;
@@ -22,11 +22,16 @@ export default function TitleCard({ title, progress, onWatchlistChanged }: Title
     e.preventDefault();
     e.stopPropagation();
     setLoadingList(true);
-    const updated = await toggleWatchlist(title.id, inList);
-    setInList(updated);
-    setLoadingList(false);
-    if (onWatchlistChanged) {
-      onWatchlistChanged();
+    try {
+      const updated = await toggleWatchlist(title.id, inList);
+      setInList(updated);
+      if (onWatchlistChanged) {
+        onWatchlistChanged();
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.isUnauthorized) redirectToLogin();
+    } finally {
+      setLoadingList(false);
     }
   };
 

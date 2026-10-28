@@ -24,7 +24,10 @@ type FormData = z.infer<typeof schema>;
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/browse';
+  const requestedRedirect = searchParams.get('redirect') || '/browse';
+  // Same-site relative paths only (prevents open redirects via ?redirect=https://evil.example).
+  const redirect =
+    requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : '/browse';
   const { signInWithPassword, signInWithOAuth } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);

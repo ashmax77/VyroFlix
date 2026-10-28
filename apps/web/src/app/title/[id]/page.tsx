@@ -3,11 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Play, Plus, Check, ArrowLeft, Clock, Calendar, Shield, Loader2 } from 'lucide-react';
-import { fetchTitle, toggleWatchlist, checkWatchlist } from '../../../lib/api';
+import { Play, Plus, Check, ArrowLeft, Clock, Calendar, Shield } from 'lucide-react';
+import { ApiError, fetchTitle, fetchSimilarTitles, toggleWatchlist, checkWatchlist } from '../../../lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../../lib/hooks';
 import { Title } from '../../../types';
 import ContentRail from '../../../components/ContentRail';
-import { MOCK_TITLES } from '../../../lib/api';
+import { ErrorState, Spinner } from '../../../components/common';
 
 export default function TitleDetailsPage() {
   const params = useParams();
@@ -18,29 +19,58 @@ export default function TitleDetailsPage() {
   const [inList, setInList] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<Title[]>([]);
+  const [seasonIndex, setSeasonIndex] = useState(0);
+  const slow = useSlowHint(loading);
 
-  useEffect(() => {
-    if (titleId) {
-      Promise.all([fetchTitle(titleId), checkWatchlist(titleId)]).then(([titleData, inListData]) => {
+  const load = () => {
+    if (!titleId) return;
+    setError(null);
+    setLoading(true);
+    Promise.all([fetchTitle(titleId), checkWatchlist(titleId)])
+      .then(([titleData, inListData]) => {
         setTitle(titleData);
         setInList(inListData);
-        setLoading(false);
-      });
-    }
-  }, [titleId]);
+        setSeasonIndex(0);
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load this title.'))
+      .finally(() => setLoading(false));
+    fetchSimilarTitles(titleId, 12).then(setSimilar);
+  };
+
+  useEffect(load, [titleId]);
 
   const handleToggleList = async () => {
     if (!title) return;
     setLoadingList(true);
-    const updated = await toggleWatchlist(title.id, inList);
-    setInList(updated);
-    setLoadingList(false);
+    setListError(null);
+    try {
+      setInList(await toggleWatchlist(title.id, inList));
+    } catch (e) {
+      setListError(
+        e instanceof ApiError && e.isUnauthorized
+          ? 'Sign in to use My List.'
+          : 'Could not update My List. Please try again.'
+      );
+    } finally {
+      setLoadingList(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <Spinner label={slow ? SLOW_LOAD_MESSAGE : undefined} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <ErrorState message={error} onRetry={load} />
       </div>
     );
   }
@@ -143,6 +173,11 @@ export default function TitleDetailsPage() {
                 )}
               </button>
             </div>
+            {listError && (
+              <p role="alert" className="-mt-5 mb-6 text-sm text-red-400">
+                {listError}
+              </p>
+            )}
 
             {/* Synopsis */}
             <div className="glass-panel p-6 rounded-card border border-border mb-8">
@@ -153,14 +188,29 @@ export default function TitleDetailsPage() {
             {/* Seasons & Episodes (if series) */}
             {title.type === 'SERIES' && title.seasons && title.seasons.length > 0 && (
               <div className="glass-panel p-6 rounded-card border border-border mb-8">
-                <h3 className="font-heading font-bold text-lg text-white mb-4">
-                  {title.seasons[0].title}
-                </h3>
+                {title.seasons.length > 1 ? (
+                  <select
+                    aria-label="Season"
+                    value={seasonIndex}
+                    onChange={(e) => setSeasonIndex(Number(e.target.value))}
+                    className="mb-4 rounded-lg border border-border bg-surface px-3 py-2 font-heading font-bold text-white"
+                  >
+                    {title.seasons.map((season, index) => (
+                      <option key={season.id} value={index}>
+                        {season.title || `Season ${season.seasonNumber}`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <h3 className="font-heading font-bold text-lg text-white mb-4">
+                    {title.seasons[0].title}
+                  </h3>
+                )}
                 <div className="space-y-3">
-                  {title.seasons[0].episodes?.map((ep) => (
+                  {title.seasons[seasonIndex]?.episodes?.map((ep) => (
                     <Link
                       key={ep.id}
-                      href={`/watch/${title.id}`}
+                      href={`/watch/${title.id}?episode=${ep.id}`}
                       className="flex items-center justify-between p-3 rounded-lg bg-surface hover:bg-surface-elevated transition-colors border border-border/50 group"
                     >
                       <div className="flex items-center space-x-4">
@@ -184,12 +234,11 @@ export default function TitleDetailsPage() {
         </div>
 
         {/* More Like This Rail */}
-        <div className="mt-12">
-          <ContentRail
-            title="More Like This"
-            items={MOCK_TITLES.filter((t) => t.id !== title.id)}
-          />
-        </div>
+        {similar.length > 0 && (
+          <div className="mt-12">
+            <ContentRail title="More Like This" items={similar.filter((t) => t.id !== title.id)} />
+          </div>
+        )}
       </div>
     </div>
   );

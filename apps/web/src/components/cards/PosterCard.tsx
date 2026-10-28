@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, Play, Plus, ThumbsUp } from 'lucide-react';
 import { MaturityBadge } from '@/components/common';
-import { toggleWatchlist, checkWatchlist } from '@/lib/api';
+import { ApiError, redirectToLogin, toggleWatchlist, checkWatchlist } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Title } from '@/types';
 
@@ -43,8 +43,9 @@ export function PosterCard({
     try {
       const res = await toggleWatchlist(title.id, inList);
       setInList(res);
-    } catch {
-      // rollback on error
+    } catch (err) {
+      // State is only updated on success, so there is nothing to roll back.
+      if (err instanceof ApiError && err.isUnauthorized) redirectToLogin();
     } finally {
       setIsToggling(false);
     }

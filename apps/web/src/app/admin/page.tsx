@@ -22,14 +22,23 @@ import {
   completeUploadIntent,
   getEncodingJobs,
   retryEncodingJob,
-  MOCK_TITLES,
+  fetchAdminTitles,
+  ApiError,
 } from '../../lib/api';
-import { EncodingJob, EncodingStatus } from '../../types';
+import { useAuth } from '../../lib/auth-context';
+import { ErrorState, Spinner } from '../../components/common';
+import { EncodingJob, EncodingStatus, Title } from '../../types';
 import Link from 'next/link';
 
 export default function AdminStudioPage() {
+  const { isAdmin, isAuthed, loading: authLoading } = useAuth();
+
+  // Title picker (real catalog, including drafts)
+  const [titles, setTitles] = useState<Title[]>([]);
+  const [titlesError, setTitlesError] = useState<string | null>(null);
+
   // Upload Studio State
-  const [selectedContentId, setSelectedContentId] = useState(MOCK_TITLES[0].id);
+  const [selectedContentId, setSelectedContentId] = useState('');
   const [targetType, setTargetType] = useState<'MOVIE' | 'EPISODE'>('MOVIE');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -46,70 +55,53 @@ export default function AdminStudioPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
 
+  const [jobsError, setJobsError] = useState<string | null>(null);
+
   const fetchJobs = useCallback(async () => {
     try {
       const data = await getEncodingJobs(statusFilter === 'ALL' ? undefined : statusFilter);
-      // Fallback sample mock jobs if database has no active transcode jobs yet
-      if (!data || data.length === 0) {
-        setJobs([
-          {
-            id: 'job-001',
-            uploadIntentId: 'intent-001',
-            contentId: MOCK_TITLES[0].id,
-            rawS3Bucket: 'vyroflix-raw',
-            rawS3Key: `raw/movie/${MOCK_TITLES[0].id}/cosmic_odyssey_master.mp4`,
-            outputS3Bucket: 'vyroflix-content',
-            outputS3Prefix: `titles/${MOCK_TITLES[0].id}/hls`,
-            masterPlaylistKey: `titles/${MOCK_TITLES[0].id}/hls/master.m3u8`,
-            status: 'READY',
-            durationSeconds: 8520,
-            retryCount: 0,
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            updatedAt: new Date(Date.now() - 3000000).toISOString(),
-            renditions: [
-              { id: 'r1', resolution: '1080p', bitrate: 4500000, width: 1920, height: 1080, playlistKey: '1080p.m3u8' },
-              { id: 'r2', resolution: '720p', bitrate: 2200000, width: 1280, height: 720, playlistKey: '720p.m3u8' },
-              { id: 'r3', resolution: '480p', bitrate: 800000, width: 854, height: 480, playlistKey: '480p.m3u8' },
-            ],
-          },
-          {
-            id: 'job-002',
-            uploadIntentId: 'intent-002',
-            contentId: MOCK_TITLES[1].id,
-            rawS3Bucket: 'vyroflix-raw',
-            rawS3Key: `raw/movie/${MOCK_TITLES[1].id}/cybernetic_shadows_raw.mp4`,
-            outputS3Bucket: 'vyroflix-content',
-            outputS3Prefix: `titles/${MOCK_TITLES[1].id}/hls`,
-            masterPlaylistKey: `titles/${MOCK_TITLES[1].id}/hls/master.m3u8`,
-            status: 'PROCESSING',
-            durationSeconds: 7080,
-            retryCount: 0,
-            createdAt: new Date(Date.now() - 600000).toISOString(),
-            updatedAt: new Date(Date.now() - 120000).toISOString(),
-            renditions: [],
-          },
-        ]);
-      } else {
-        setJobs(data);
-      }
+      setJobs(data);
+      setJobsError(null);
     } catch (e) {
-      console.warn('Failed fetching jobs:', e);
+      // The encoding worker runs outside the free-tier backend, so a 404/502 here usually means "worker offline".
+      setJobsError(
+        e instanceof ApiError && (e.isNotFound || e.isNetwork)
+          ? 'The encoding service is not reachable. Start the encoding worker to process uploads.'
+          : e instanceof ApiError
+            ? e.message
+            : 'Could not load encoding jobs.',
+      );
     } finally {
       setIsLoadingJobs(false);
     }
   }, [statusFilter]);
 
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+  const loadTitles = useCallback(async () => {
+    setTitlesError(null);
+    try {
+      const data = await fetchAdminTitles();
+      setTitles(data);
+      setSelectedContentId((current) => current || data[0]?.id || '');
+    } catch (e) {
+      setTitlesError(e instanceof ApiError ? e.message : 'Could not load titles.');
+    }
+  }, []);
 
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (isAdmin) loadTitles();
+  }, [isAdmin, loadTitles]);
+
+  useEffect(() => {
+    if (isAdmin) fetchJobs();
+  }, [isAdmin, fetchJobs]);
+
+  useEffect(() => {
+    if (!autoRefresh || !isAdmin) return;
     const interval = setInterval(() => {
       fetchJobs();
     }, 8000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchJobs]);
+  }, [autoRefresh, isAdmin, fetchJobs]);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -125,7 +117,7 @@ export default function AdminStudioPage() {
   };
 
   const handleStartUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedContentId) return;
 
     setIsUploading(true);
     setUploadError(null);
@@ -183,7 +175,32 @@ export default function AdminStudioPage() {
     }
   };
 
-  const selectedTitle = MOCK_TITLES.find((t) => t.id === selectedContentId);
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!isAuthed || !isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
+        <h1 className="text-2xl font-bold">Admin access required</h1>
+        <p className="text-text-secondary text-sm">
+          {isAuthed ? 'Your account does not have the ADMIN role.' : 'Sign in with an administrator account.'}
+        </p>
+        <Link
+          href={isAuthed ? '/browse' : '/login?redirect=/admin'}
+          className="px-6 py-2.5 rounded-full bg-white text-black font-semibold"
+        >
+          {isAuthed ? 'Back to browse' : 'Sign in'}
+        </Link>
+      </div>
+    );
+  }
+
+  const selectedTitle = titles.find((t) => t.id === selectedContentId);
 
   // Statistics
   const totalJobs = jobs.length;
@@ -267,12 +284,14 @@ export default function AdminStudioPage() {
                     disabled={isUploading}
                     className="w-full bg-[#12121A] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
                   >
-                    {MOCK_TITLES.map((title) => (
+                    {titles.length === 0 && <option value="">{titlesError ? 'Could not load titles' : 'No titles yet'}</option>}
+                    {titles.map((title) => (
                       <option key={title.id} value={title.id}>
                         {title.title} ({title.type})
                       </option>
                     ))}
                   </select>
+                  {titlesError && <ErrorState compact message={titlesError} onRetry={loadTitles} />}
                 </div>
 
                 <div>
@@ -463,7 +482,8 @@ export default function AdminStudioPage() {
 
             {/* Jobs List */}
             <div className="space-y-4">
-              {jobs.length === 0 ? (
+              {jobsError && <ErrorState compact message={jobsError} onRetry={fetchJobs} />}
+              {!jobsError && jobs.length === 0 ? (
                 <div className="p-12 text-center rounded-2xl bg-card border border-white/10 text-text-muted">
                   <Layers className="w-10 h-10 mx-auto mb-3 opacity-30 text-purple-400" />
                   <p className="text-sm font-medium text-white mb-1">No encoding jobs found</p>
@@ -471,7 +491,7 @@ export default function AdminStudioPage() {
                 </div>
               ) : (
                 jobs.map((job) => {
-                  const titleMeta = MOCK_TITLES.find((t) => t.id === job.contentId);
+                  const titleMeta = titles.find((t) => t.id === job.contentId);
                   return (
                     <div
                       key={job.id}

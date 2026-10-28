@@ -6,7 +6,8 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import TitleCard from '../../components/TitleCard';
 import { Title } from '../../types';
-import { searchTitles, getSearchSuggestions } from '../../lib/api';
+import { ErrorState } from '../../components/common';
+import { ApiError, searchTitles, getSearchSuggestions } from '../../lib/api';
 import { Search, X, Film, Tv, Sparkles, Filter, Loader2 } from 'lucide-react';
 
 function SearchContent() {
@@ -22,9 +23,11 @@ function SearchContent() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchResults = useCallback(async (searchQuery: string, typeFilter: string) => {
     setIsLoading(true);
+    setError(null);
     try {
       const page = await searchTitles(searchQuery, typeFilter, 0, 30);
       const mappedTitles: Title[] = page.content.map((item) => ({
@@ -43,7 +46,9 @@ function SearchContent() {
       setTitles(mappedTitles);
       setTotalResults(page.totalElements);
     } catch (err) {
-      console.error('Search failed:', err);
+      setTitles([]);
+      setTotalResults(0);
+      setError(err instanceof ApiError ? err.message : 'Search is unavailable right now.');
     } finally {
       setIsLoading(false);
     }
@@ -249,6 +254,8 @@ function SearchContent() {
               />
             ))}
           </div>
+        ) : error ? (
+          <ErrorState message={error} onRetry={() => fetchResults(query, selectedType)} />
         ) : titles.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {titles.map((title) => (

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Play, Plus, Check, Info, Pause, PlayCircle } from 'lucide-react';
 import { MaturityBadge, Skeleton } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { toggleWatchlist, checkWatchlist } from '@/lib/api';
+import { ApiError, redirectToLogin, toggleWatchlist, checkWatchlist } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Title } from '@/types';
 
@@ -51,6 +51,8 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
     try {
       const updated = await toggleWatchlist(activeTitle.id, inList);
       setInList(updated);
+    } catch (err) {
+      if (err instanceof ApiError && err.isUnauthorized) redirectToLogin();
     } finally {
       setIsToggling(false);
     }

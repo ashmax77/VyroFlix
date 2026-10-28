@@ -16,22 +16,28 @@ import {
   Settings,
   Loader2,
 } from 'lucide-react';
-import { createPlaybackSession, saveProgress } from '../lib/api';
+import { ApiError, createPlaybackSession, saveProgress } from '../lib/api';
 import { formatTime } from '../lib/utils';
 import { Title } from '../types';
 
 interface VideoPlayerProps {
   title: Title;
+  /** Playable id: the title id for movies, the episode id for episodes. Defaults to the title id. */
+  contentId?: string;
   targetType?: 'MOVIE' | 'EPISODE';
   episodeTitle?: string;
 }
 
 export default function VideoPlayer({
   title,
+  contentId: contentIdProp,
   targetType = 'MOVIE',
   episodeTitle,
 }: VideoPlayerProps) {
   const router = useRouter();
+  const contentId = contentIdProp ?? title.id;
+  const durationRef = useRef(0);
+  const [retryNonce, setRetryNonce] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -52,35 +58,47 @@ export default function VideoPlayer({
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Send progress heartbeat
-  const sendHeartbeat = useCallback(() => {
-    if (videoRef.current && duration > 0) {
-      const pos = Math.round(videoRef.current.currentTime);
-      const dur = Math.round(duration);
-      saveProgress({
-        contentId: title.id,
-        targetType,
-        positionSeconds: pos,
-        durationSeconds: dur,
-      });
-    }
-  }, [title.id, targetType, duration]);
+  // Progress heartbeat. Reads everything through refs so its identity is stable: the player must NOT
+  // re-initialise (new session + new hls.js instance) just because the duration became known.
+  const sendHeartbeat = useCallback(
+    (options: { keepalive?: boolean } = {}) => {
+      const video = videoRef.current;
+      const dur = durationRef.current;
+      if (!video || !(dur > 0)) return;
+      void saveProgress(
+        {
+          contentId,
+          targetType,
+          positionSeconds: Math.round(video.currentTime),
+          durationSeconds: Math.round(dur),
+        },
+        options,
+      );
+    },
+    [contentId, targetType],
+  );
 
   // Initialize stream and HLS
   useEffect(() => {
     let isCancelled = false;
     let hlsInstance: Hls | null = null;
+    let sessionRefreshes = 0;
+    const MAX_SESSION_REFRESHES = 2;
+
+    async function startSession() {
+      const session = await createPlaybackSession(contentId, targetType);
+      if (isCancelled || !videoRef.current) return null;
+      return session;
+    }
 
     async function initPlayer() {
       setLoading(true);
       setErrorMsg(null);
 
       try {
-        const session = await createPlaybackSession(title.id, targetType);
-
-        if (isCancelled || !videoRef.current) return;
-
-        const video = videoRef.current;
+        const session = await startSession();
+        if (!session) return;
+        const video = videoRef.current!;
         const manifestUrl = session.manifestUrl;
 
         if (Hls.isSupported()) {
@@ -105,58 +123,102 @@ export default function VideoPlayer({
           });
 
           hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  hlsInstance?.startLoad();
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  hlsInstance?.recoverMediaError();
-                  break;
-                default:
+            if (!data.fatal) return;
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR: {
+                // An expired/rejected signed URL looks like a network error: ask for a fresh session
+                // (a few times) rather than retrying the dead URL forever.
+                if (sessionRefreshes >= MAX_SESSION_REFRESHES) {
                   hlsInstance?.destroy();
-                  setErrorMsg('Failed to play media stream. Reconnecting...');
-                  break;
+                  setErrorMsg('The stream could not be loaded. Please try again.');
+                  return;
+                }
+                sessionRefreshes += 1;
+                const resumeAt = video.currentTime;
+                const wasPlaying = !video.paused;
+                startSession()
+                  .then((next) => {
+                    if (!next || !hlsInstance) return;
+                    hlsInstance.once(Hls.Events.MANIFEST_PARSED, () => {
+                      video.currentTime = resumeAt;
+                      if (wasPlaying) video.play().catch(() => setIsPlaying(false));
+                    });
+                    hlsInstance.loadSource(next.manifestUrl);
+                  })
+                  .catch(() => {
+                    if (!isCancelled) setErrorMsg('Could not renew your playback session.');
+                  });
+                break;
               }
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hlsInstance?.recoverMediaError();
+                break;
+              default:
+                hlsInstance?.destroy();
+                setErrorMsg('Failed to play media stream.');
+                break;
             }
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           // Native Safari HLS
           video.src = manifestUrl;
-          video.addEventListener('loadedmetadata', () => {
+          const onLoadedMetadata = () => {
             if (session.resumePositionSeconds > 0) {
               video.currentTime = session.resumePositionSeconds;
             }
             setLoading(false);
             video.play().catch(() => setIsPlaying(false));
-          });
+          };
+          video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
         } else {
+          setLoading(false);
           setErrorMsg('HLS playback is not supported on this browser.');
         }
       } catch (err) {
         if (!isCancelled) {
-          setErrorMsg('Could not authorize playback session.');
+          setLoading(false);
+          setErrorMsg(
+            err instanceof ApiError && err.status === 401
+              ? 'Please sign in to watch.'
+              : err instanceof ApiError && err.status === 403
+                ? 'Your account is not allowed to watch this title.'
+                : err instanceof ApiError && err.status === 404
+                  ? 'This title is not available to watch yet.'
+                  : 'Could not authorize playback. Please try again.',
+          );
         }
       }
     }
 
     initPlayer();
 
-    // Start progress heartbeat every 20 seconds
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 20000);
+    // Progress heartbeat every 20 seconds while actively playing
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (videoRef.current && !videoRef.current.paused) sendHeartbeat();
+    }, 20000);
+
+    // Final best-effort update when the tab is hidden or closed (unmount cleanup does not run on tab close)
+    const flush = () => sendHeartbeat({ keepalive: true });
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       isCancelled = true;
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
-      sendHeartbeat(); // final best effort
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      sendHeartbeat({ keepalive: true }); // final best effort (navigation away)
       if (hlsInstance) {
         hlsInstance.destroy();
       }
       hlsRef.current = null;
     };
-  }, [title.id, targetType, sendHeartbeat]);
+  }, [contentId, targetType, sendHeartbeat, retryNonce]);
 
   // Video event handlers
   const handleTimeUpdate = () => {
@@ -172,6 +234,7 @@ export default function VideoPlayer({
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
+      durationRef.current = videoRef.current.duration;
       setDuration(videoRef.current.duration);
     }
   };
@@ -213,6 +276,16 @@ export default function VideoPlayer({
     }
   };
 
+  const adjustVolume = (delta: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const next = Math.min(1, Math.max(0, Math.round((video.volume + delta) * 10) / 10));
+    video.volume = next;
+    video.muted = next === 0;
+    setVolume(next);
+    setIsMuted(next === 0);
+  };
+
   const toggleMute = () => {
     if (videoRef.current) {
       const nextMuted = !isMuted;
@@ -231,6 +304,12 @@ export default function VideoPlayer({
       setIsFullscreen(false);
     }
   };
+
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   const handleQualitySelect = (levelId: number) => {
     if (hlsRef.current) {
@@ -271,11 +350,11 @@ export default function VideoPlayer({
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setVolume((v) => Math.min(1, v + 0.1));
+          adjustVolume(0.1);
           break;
         case 'ArrowDown':
           e.preventDefault();
-          setVolume((v) => Math.max(0, v - 0.1));
+          adjustVolume(-0.1);
           break;
         case 'KeyM':
           toggleMute();
@@ -307,6 +386,10 @@ export default function VideoPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          sendHeartbeat();
+        }}
         onClick={togglePlay}
         className="w-full h-full object-contain cursor-pointer"
         playsInline
@@ -327,7 +410,7 @@ export default function VideoPlayer({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-30 p-6 text-center">
           <p className="text-red-400 font-semibold mb-4 text-base">{errorMsg}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => setRetryNonce((n) => n + 1)}
             className="px-6 py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-gray-200 transition-colors"
           >
             Retry Stream

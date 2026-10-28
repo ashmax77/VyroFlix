@@ -1,42 +1,89 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useSearchParams } from 'next/navigation';
 import VideoPlayer from '../../../components/VideoPlayer';
-import { fetchTitle } from '../../../lib/api';
+import { ErrorState, Spinner } from '../../../components/common';
+import { ApiError, fetchTitle } from '../../../lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../../lib/hooks';
 import { Title } from '../../../types';
-import { Loader2 } from 'lucide-react';
 
 export default function WatchPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const titleId = params.id as string;
+  const episodeId = searchParams.get('episode');
+
   const [title, setTitle] = useState<Title | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const slow = useSlowHint(loading);
 
-  useEffect(() => {
-    if (titleId) {
-      fetchTitle(titleId).then((data) => {
-        setTitle(data);
-        setLoading(false);
-      });
-    }
-  }, [titleId]);
+  const load = () => {
+    if (!titleId) return;
+    setError(null);
+    setLoading(true);
+    fetchTitle(titleId)
+      .then(setTitle)
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load this title.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [titleId]);
+
+  // Series: play the requested episode; fall back to the first one. Movies play the title itself.
+  const episode = useMemo(() => {
+    if (!title || title.type !== 'SERIES') return null;
+    const episodes = (title.seasons ?? []).flatMap((season) => season.episodes ?? []);
+    return episodes.find((ep) => ep.id === episodeId) ?? episodes[0] ?? null;
+  }, [title, episodeId]);
 
   if (loading) {
     return (
       <div className="w-full h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <Spinner label={slow ? SLOW_LOAD_MESSAGE : undefined} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-screen bg-black flex items-center justify-center">
+        <ErrorState message={error} onRetry={load} />
       </div>
     );
   }
 
   if (!title) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center text-text-secondary">
-        Title not found.
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-text-secondary">
+        <p>Title not found.</p>
+        <Link href="/browse" className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
+          Return to Browse
+        </Link>
       </div>
     );
   }
 
-  return <VideoPlayer title={title} />;
+  if (title.type === 'SERIES' && !episode) {
+    return (
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-text-secondary">
+        <p>No episodes are available for this series yet.</p>
+        <Link href={`/title/${title.id}`} className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
+          Back to details
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <VideoPlayer
+      key={episode?.id ?? title.id}
+      title={title}
+      contentId={episode?.id ?? title.id}
+      targetType={episode ? 'EPISODE' : 'MOVIE'}
+      episodeTitle={episode?.title}
+    />
+  );
 }

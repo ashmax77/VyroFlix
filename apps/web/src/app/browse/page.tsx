@@ -3,8 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import HeroBillboard from '@/components/HeroBillboard';
 import ContentRail from '@/components/ContentRail';
-import { Spinner } from '@/components/common';
-import { fetchHomeFeed, fetchContinueWatching, fetchTrendingRail, fetchPersonalRecommendations } from '@/lib/api';
+import { ErrorState, Spinner } from '@/components/common';
+import {
+  ApiError,
+  fetchHomeFeed,
+  fetchContinueWatching,
+  fetchTrendingRail,
+  fetchPersonalRecommendations,
+} from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { HomeFeed, ViewingProgress, Title } from '@/types';
 
 export default function BrowsePage() {
@@ -13,32 +21,62 @@ export default function BrowsePage() {
   const [trending, setTrending] = useState<Title[]>([]);
   const [recommended, setRecommended] = useState<Title[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { isAuthed, loading: authLoading } = useAuth();
+  const slow = useSlowHint(loading);
 
   const loadData = async () => {
+    setError(null);
     try {
-      const [feedData, progressData, trendingData, recData] = await Promise.all([
-        fetchHomeFeed(),
-        fetchContinueWatching(),
-        fetchTrendingRail(10),
-        fetchPersonalRecommendations(10),
-      ]);
+      // The catalog is required; everything else is optional and must never block the page.
+      const feedData = await fetchHomeFeed();
       setFeed(feedData);
+
+      const [progressData, trendingData, recData] = await Promise.all([
+        isAuthed
+          ? fetchContinueWatching().catch((e: unknown) => {
+              if (!(e instanceof ApiError && e.isUnauthorized)) console.warn('Continue Watching unavailable:', e);
+              return [] as ViewingProgress[];
+            })
+          : Promise.resolve([] as ViewingProgress[]),
+        fetchTrendingRail(10),
+        isAuthed ? fetchPersonalRecommendations(10) : Promise.resolve([] as Title[]),
+      ]);
       setContinueWatching(progressData);
       setTrending(trendingData);
       setRecommended(recData);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not load the catalog.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    setLoading(true);
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isAuthed]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spinner label="Loading catalog & recommendations..." />
+        <Spinner label={slow ? SLOW_LOAD_MESSAGE : 'Loading catalog & recommendations...'} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setLoading(true);
+            loadData();
+          }}
+        />
       </div>
     );
   }

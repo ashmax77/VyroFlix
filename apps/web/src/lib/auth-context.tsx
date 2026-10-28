@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
-import { setStoredAuthToken, setStoredUserId } from './api';
 
 export type AuthRole = 'USER' | 'ADMIN' | 'anonymous';
 
@@ -30,25 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const determineRole = (u: User | null): AuthRole => {
     if (!u) return 'anonymous';
-    const appRole = u.app_metadata?.role || u.user_metadata?.role;
-    if (appRole === 'ADMIN' || u.email?.startsWith('admin@') || u.email?.includes('+admin@')) {
-      return 'ADMIN';
-    }
-    return 'USER';
+    // app_metadata is server-controlled; user_metadata is user-editable and must never decide roles.
+    // This only drives UI visibility - the backend independently enforces ADMIN from the JWT.
+    return String(u.app_metadata?.role ?? '').toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
   };
 
   const syncAuth = useCallback((s: Session | null) => {
     setSession(s);
     const u = s?.user ?? null;
     setUser(u);
-    if (s?.access_token) {
-      setStoredAuthToken(s.access_token);
-    } else {
-      setStoredAuthToken(null);
-    }
-    if (u?.id) {
-      setStoredUserId(u.id);
-    }
   }, []);
 
   useEffect(() => {

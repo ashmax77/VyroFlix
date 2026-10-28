@@ -2,18 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bookmark, Play, Trash2, Loader2 } from 'lucide-react';
-import { fetchWatchlist, toggleWatchlist } from '../../lib/api';
+import { Bookmark, Play, Trash2 } from 'lucide-react';
+import { ErrorState, Spinner } from '../../components/common';
+import { ApiError, fetchWatchlist, toggleWatchlist } from '../../lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../lib/hooks';
 import { WatchlistEntry } from '../../types';
 
 export default function MyListPage() {
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ message: string; unauthorized: boolean } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const slow = useSlowHint(loading);
 
   const loadData = async () => {
+    setError(null);
+    setLoading(true);
     try {
       const data = await fetchWatchlist();
       setWatchlist(data);
+    } catch (e) {
+      const apiError = e instanceof ApiError ? e : null;
+      setError({
+        message: apiError?.isUnauthorized
+          ? 'Your session has expired. Please sign in again to see your list.'
+          : apiError?.message ?? 'Could not load your list.',
+        unauthorized: !!apiError?.isUnauthorized,
+      });
     } finally {
       setLoading(false);
     }
@@ -24,14 +39,32 @@ export default function MyListPage() {
   }, []);
 
   const handleRemove = async (titleId: string) => {
-    await toggleWatchlist(titleId, true);
-    setWatchlist((prev) => prev.filter((item) => item.titleId !== titleId));
+    setActionError(null);
+    try {
+      await toggleWatchlist(titleId, true);
+      setWatchlist((prev) => prev.filter((item) => item.titleId !== titleId));
+    } catch (e) {
+      setActionError(e instanceof ApiError ? e.message : 'Could not remove the title. Please try again.');
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <Spinner label={slow ? SLOW_LOAD_MESSAGE : undefined} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <ErrorState message={error.message} onRetry={error.unauthorized ? undefined : loadData} />
+        {error.unauthorized && (
+          <Link href="/login?redirect=/my-list" className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
+            Sign in
+          </Link>
+        )}
       </div>
     );
   }
@@ -44,6 +77,8 @@ export default function MyListPage() {
           My List
         </h1>
       </div>
+
+      {actionError && <ErrorState compact message={actionError} />}
 
       {watchlist.length === 0 ? (
         <div className="glass-panel p-12 rounded-card border border-border text-center max-w-lg mx-auto mt-16">
