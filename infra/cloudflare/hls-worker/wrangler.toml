@@ -1,0 +1,18 @@
+# VyroFlix HLS delivery worker. Deploy with: npx wrangler deploy (from this directory).
+# Secrets are set with: npx wrangler secret put HLS_SIGNING_SECRET
+name = "vyroflix-hls"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Route the CDN hostname to this worker. Replace with your domain (e.g. media.example.com).
+routes = [
+  { pattern = "media.example.com/*", zone_name = "example.com" }
+]
+
+# The content bucket must stay PRIVATE (no public access / r2.dev domain). Only this worker reads it.
+[[r2_buckets]]
+binding = "CONTENT"
+bucket_name = "vyroflix-content"
+
+[vars]
+CHILD_TOKEN_TTL_SECONDS = "14400"

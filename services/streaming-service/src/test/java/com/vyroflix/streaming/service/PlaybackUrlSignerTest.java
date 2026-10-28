@@ -67,6 +67,15 @@ class PlaybackUrlSignerTest {
         assertThat(forOther).isNotEqualTo(expectedSignature("titles/3f2b1c00-0000-4000-8000-000000000001/", exp));
     }
 
+    @Test
+    @DisplayName("signature matches the Cloudflare Worker vector (cross-language contract)")
+    void matchesWorkerVector() {
+        // Same value asserted in infra/cloudflare/hls-worker/test/worker.test.mjs.
+        assertThat(PlaybackUrlSigner.signature("titles/3f2b1c00-0000-4000-8000-000000000001/", 1_900_000_000L,
+                "test-secret-that-is-at-least-32-characters-long".getBytes(StandardCharsets.UTF_8)))
+                .isEqualTo("_Wq88MfLUKJ_ycEeq8GtYbSR3mhwhI7-2l28_CbltGU");
+    }
+
     private static String expectedSignature(String scope, long exp) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
