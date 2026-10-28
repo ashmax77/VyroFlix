@@ -45,8 +45,8 @@ class SupabaseJwtConverterTest {
     }
 
     @Test
-    @DisplayName("Convert JWT with user_metadata admin role grants ROLE_ADMIN")
-    void convertAdminRoleFromUserMetadata() {
+    @DisplayName("user_metadata is user-editable and must never grant ROLE_ADMIN")
+    void userMetadataRoleIsIgnored() {
         UUID userId = UUID.randomUUID();
         Jwt jwt = createJwt(
                 userId.toString(),
@@ -58,8 +58,9 @@ class SupabaseJwtConverterTest {
         AbstractAuthenticationToken token = converter.convert(jwt);
 
         Set<String> authorities = getAuthorityNames(token);
-        assertTrue(authorities.contains("ROLE_ADMIN"));
+        assertFalse(authorities.contains("ROLE_ADMIN"));
         assertTrue(authorities.contains("ROLE_USER"));
+        assertFalse(((UserPrincipal) token.getPrincipal()).isAdmin());
     }
 
     @Test

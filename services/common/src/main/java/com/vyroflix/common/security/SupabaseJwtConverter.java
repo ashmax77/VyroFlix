@@ -18,7 +18,7 @@ import java.util.*;
  *
  * <p>
  * Extracts user ID (from {@code sub}), email, and RBAC roles from Supabase's
- * {@code app_metadata}, {@code user_metadata}, or top-level {@code role} claim.
+ * {@code app_metadata} (server-controlled) or the top-level {@code role} claim.
  * </p>
  */
 @Slf4j
@@ -26,7 +26,6 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
 
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String CLAIM_APP_METADATA = "app_metadata";
-    private static final String CLAIM_USER_METADATA = "user_metadata";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_EMAIL = "email";
@@ -124,16 +123,10 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
             }
         }
 
-        // 2. Check user_metadata for role
-        Map<String, Object> userMetadata = jwt.getClaimAsMap(CLAIM_USER_METADATA);
-        if (userMetadata != null) {
-            Object roleObj = userMetadata.get(CLAIM_ROLE);
-            if (roleObj instanceof String roleStr && !roleStr.isBlank()) {
-                roles.add(roleStr);
-            }
-        }
+        // user_metadata is deliberately NOT consulted: Supabase lets users edit it themselves
+        // (auth.updateUser({ data })), so honouring it would allow self-promotion to ADMIN.
 
-        // 3. Check top-level role claim (Supabase default: "authenticated")
+        // 2. Check top-level role claim (Supabase default: "authenticated")
         String topLevelRole = jwt.getClaimAsString(CLAIM_ROLE);
         if (topLevelRole != null && !topLevelRole.isBlank()) {
             if (AUTHENTICATED_ROLE.equalsIgnoreCase(topLevelRole)) {
