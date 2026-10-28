@@ -441,7 +441,7 @@ export function uploadFileDirectToStorage(
     };
 
     xhr.onerror = () => {
-      reject(new Error('Network error during direct storage upload'));
+      reject(new Error('Network error during direct storage upload. Please verify that your Cloudflare R2 bucket (vyroflix-raw) has CORS configured allowing PUT and HEAD from this origin.'));
     };
 
     xhr.send(file);
