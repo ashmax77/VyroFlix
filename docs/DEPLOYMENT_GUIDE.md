@@ -33,7 +33,13 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
      ```text
      jdbc:postgresql://aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
      ```
-6. Under **Project Settings -> API**:
+6. **Admin accounts:** roles are read only from the JWT's `app_metadata.role` (users can edit `user_metadata`, so it is never trusted). Promote an administrator in the SQL editor, then have them sign in again:
+   ```sql
+   update auth.users
+   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "ADMIN"}'::jsonb
+   where email = 'admin@example.com';
+   ```
+7. Under **Project Settings -> API**:
    - Copy `Project URL` (e.g., `https://xyz.supabase.co`).
    - Copy `anon` public key (used for frontend Auth).
 
@@ -81,6 +87,7 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
    * `SPRING_DATASOURCE_URL`: your Supabase JDBC URL (`jdbc:postgresql://...`).
    * `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`: your Supabase database credentials.
    * `SUPABASE_URL`: your Supabase project URL (used to derive the JWKS URI and issuer for JWT validation).
+   * `CORS_ALLOWED_ORIGINS`: comma-separated browser origins allowed to call the API, e.g. `https://vyroflix.vercel.app` (defaults to `http://localhost:3000` and `https://*.vercel.app`; set your exact domain, and add any custom domain).
    * `UPSTASH_REDIS_URL`: your Upstash Redis connection string (`rediss://...`).
    * `KAFKA_BOOTSTRAP_SERVERS` and `KAFKA_SASL_JAAS_CONFIG`: your Kafka endpoint and SASL credentials.
    * `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`: your Cloudflare R2 endpoint and API token.
@@ -100,7 +107,7 @@ This guide documents the exact steps to deploy **VyroFlix** to the cloud complet
 4. Set **Root Directory** to `apps/web`.
 5. Under **Environment Variables**, add:
    * `NEXT_PUBLIC_GATEWAY_URL`: your Render backend URL (e.g. `https://vyroflix-backend.onrender.com`). `next.config.mjs` proxies `/api/v1/**` to it.
-   * `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your Supabase project URL and public anon key (reserved for the Supabase Auth integration).
+   * `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your Supabase project URL and public anon key (required: the app throws at startup if they are missing; there are no built-in fallback values).
 6. Click **Deploy**.
 7. Vercel builds the Next.js App Router and provisions your live URL (e.g. `https://vyroflix.vercel.app`).
 
@@ -112,7 +119,7 @@ To ensure this deployment remains permanently at **$0.00**:
 
 1. **Render Free Cold Starts**:
    - Render free web services spin down after 15 minutes of inactivity.
-   - The first request after a sleep period takes ~30–50 seconds to boot. The Next.js frontend has built-in retry and loading skeletons to handle cold starts gracefully.
+   - The first request after a sleep period takes ~30–50 seconds to boot. The frontend retries idempotent GETs with backoff (about 35 s in total) on network errors and 502/503/504, and shows a "server may be waking up" hint after 6 s of loading. Non-idempotent requests are not retried; the user sees an error with a Retry button.
 2. **Supabase Connections**:
    - Supabase Free limits direct connections to 15.
    - Our `application-render.yml` sets `hikari.maximum-pool-size: 5` to safely stay within limits.
