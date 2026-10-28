@@ -32,6 +32,8 @@ public class AdminCatalogService {
     private final GenreRepository genreRepository;
     private final MediaAssetReferenceRepository mediaAssetReferenceRepository;
     private final ObjectProvider<OutboxService> outboxServiceProvider;
+    private final PersonRepository personRepository;
+    private final TitleCreditRepository titleCreditRepository;
 
     @Transactional
     public TitleResponse createTitle(CreateTitleRequest request) {
@@ -92,6 +94,9 @@ public class AdminCatalogService {
         }
 
         Title saved = titleRepository.save(title);
+        if (saved.getPublicationState() == PublicationState.PUBLISHED) {
+            publishCatalogEvent(Constants.TOPIC_CATALOG_TITLE_UPDATED, saved);
+        }
         return toTitleResponse(saved);
     }
 
@@ -189,7 +194,7 @@ public class AdminCatalogService {
         title.setPublicationState(PublicationState.PUBLISHED);
         Title saved = titleRepository.save(title);
 
-        publishCatalogPublishedEvent(saved);
+        publishCatalogEvent(Constants.TOPIC_CATALOG_TITLE_PUBLISHED, saved);
         log.info("Title published successfully: id={} title=[{}]", saved.getId(), saved.getTitle());
         return toTitleResponse(saved);
     }
@@ -290,10 +295,52 @@ public class AdminCatalogService {
         return mediaAssetReferenceRepository.save(asset);
     }
 
-    private void publishCatalogPublishedEvent(Title title) {
+    /**
+     * Re-emits catalog.title.updated.v1 for a title that is currently PUBLISHED (no-op otherwise), so search
+     * and recommendation read models pick up credit or metadata changes.
+     */
+    @Transactional
+    public void emitUpdatedIfPublished(UUID titleId) {
+        titleRepository.findById(titleId)
+                .filter(t -> t.getPublicationState() == PublicationState.PUBLISHED)
+                .ifPresent(t -> publishCatalogEvent(Constants.TOPIC_CATALOG_TITLE_UPDATED, t));
+    }
+
+    /**
+     * Deletes a title that is not published. Seasons, episodes, credits and collection links cascade in the database.
+     */
+    @Transactional
+    public void deleteTitle(UUID titleId) {
+        Title title = titleRepository.findById(titleId)
+                .orElseThrow(() -> new ApiException(ErrorCode.TITLE_NOT_FOUND, "Title not found with id: " + titleId));
+        if (title.getPublicationState() == PublicationState.PUBLISHED) {
+            throw new ApiException(ErrorCode.CONFLICT, "Unpublish the title before deleting it");
+        }
+        titleRepository.delete(title);
+        log.info("Deleted title id={}", titleId);
+    }
+
+    @Transactional(readOnly = true)
+    public CatalogStatsResponse catalogStats() {
+        Map<String, Long> byType = new LinkedHashMap<>();
+        for (TitleType type : TitleType.values()) {
+            byType.put(type.name(), titleRepository.countByType(type));
+        }
+        Map<String, Long> byState = new LinkedHashMap<>();
+        for (PublicationState state : PublicationState.values()) {
+            byState.put(state.name(), titleRepository.countByPublicationState(state));
+        }
+        return CatalogStatsResponse.builder()
+                .totalTitles(titleRepository.count())
+                .byType(byType)
+                .byPublicationState(byState)
+                .build();
+    }
+
+    private void publishCatalogEvent(String topic, Title title) {
         OutboxService outboxService = outboxServiceProvider.getIfAvailable();
         if (outboxService == null) {
-            log.warn("OutboxService not available; skipping catalog.title.published.v1 event");
+            log.warn("OutboxService not available; skipping {} event", topic);
             return;
         }
 
@@ -311,15 +358,36 @@ public class AdminCatalogService {
                 .maturityRating(title.getMaturityRating())
                 .posterUrl(title.getPosterUrl())
                 .backdropUrl(title.getBannerUrl())
+                .castMembers(creditNames(title.getId(), "ACTOR"))
+                .directors(creditNames(title.getId(), "DIRECTOR"))
                 .publishedAt(Instant.now())
                 .build();
 
         outboxService.save(EventEnvelope.of(
-                Constants.TOPIC_CATALOG_TITLE_PUBLISHED,
+                topic,
                 Constants.SERVICE_CONTENT,
                 UUID.randomUUID(),
                 payload
         ));
+    }
+
+    /** Names for one credit role, in a single batched person lookup. */
+    private List<String> creditNames(UUID titleId, String role) {
+        List<TitleCredit> credits = titleCreditRepository.findByTitleId(titleId).stream()
+                .filter(c -> role.equals(c.getRole()))
+                .toList();
+        if (credits.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> names = personRepository.findAllById(
+                        credits.stream().map(TitleCredit::getPersonId).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(Person::getId, Person::getName));
+        return credits.stream()
+                .map(c -> names.get(c.getPersonId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private void publishCatalogEpisodePublishedEvent(Episode episode, UUID titleId) {

@@ -1,9 +1,13 @@
 package com.vyroflix.content.controller;
 
 import com.vyroflix.content.dto.*;
+import com.vyroflix.content.dto.PersonDtos.CreatePersonRequest;
+import com.vyroflix.content.dto.PersonDtos.PersonResponse;
+import com.vyroflix.content.dto.PersonDtos.UpdateCreditsRequest;
 import com.vyroflix.content.entity.PublicationState;
 import com.vyroflix.content.entity.TitleType;
 import com.vyroflix.content.service.AdminCatalogService;
+import com.vyroflix.content.service.CastService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,7 @@ import java.util.UUID;
 public class AdminTitleController {
 
     private final AdminCatalogService adminCatalogService;
+    private final CastService castService;
 
     // --- Titles ---
 
@@ -62,6 +67,34 @@ public class AdminTitleController {
     public ResponseEntity<TitleResponse> unpublishTitle(@PathVariable("id") UUID id) {
         TitleResponse response = adminCatalogService.unpublishTitle(id);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/titles/{id}")
+    public ResponseEntity<Void> deleteTitle(@PathVariable("id") UUID id) {
+        adminCatalogService.deleteTitle(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- People & credits ---
+
+    @PostMapping("/persons")
+    public ResponseEntity<PersonResponse> createPerson(@Valid @RequestBody CreatePersonRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(castService.createPerson(request));
+    }
+
+    /** Replaces the full credit list for a title and returns the resulting cast. */
+    @PutMapping("/titles/{id}/credits")
+    public ResponseEntity<List<CastMemberResponse>> replaceCredits(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody UpdateCreditsRequest request) {
+        return ResponseEntity.ok(castService.replaceCredits(id, request));
+    }
+
+    // --- Stats ---
+
+    @GetMapping("/stats/catalog")
+    public ResponseEntity<CatalogStatsResponse> catalogStats() {
+        return ResponseEntity.ok(adminCatalogService.catalogStats());
     }
 
     // --- Seasons & Episodes ---

@@ -41,6 +41,9 @@ class AdminTitleControllerTest {
     @MockBean
     private AdminCatalogService adminCatalogService;
 
+    @MockBean
+    private com.vyroflix.content.service.CastService castService;
+
     @Test
     @DisplayName("POST /api/v1/admin/titles creates title and returns 201")
     void createTitle_Success() throws Exception {

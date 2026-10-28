@@ -30,6 +30,9 @@ public class TitleResponse {
     private boolean mediaReady;
     private Set<GenreResponse> genres;
     private List<SeasonResponse> seasons;
+    /** Only populated on single-title reads; list endpoints leave it null to avoid N+1 lookups. */
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private List<CastMemberResponse> cast;
     private Instant createdAt;
     private Instant updatedAt;
 }

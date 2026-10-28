@@ -19,6 +19,10 @@ public interface TitleRepository extends JpaRepository<Title, UUID> {
 
     List<Title> findByPublicationState(PublicationState publicationState);
 
+    long countByType(TitleType type);
+
+    long countByPublicationState(PublicationState publicationState);
+
     List<Title> findByPublicationStateAndType(PublicationState publicationState, TitleType type);
 
     Page<Title> findByPublicationState(PublicationState publicationState, Pageable pageable);

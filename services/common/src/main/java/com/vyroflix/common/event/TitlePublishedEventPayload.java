@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,5 +29,9 @@ public class TitlePublishedEventPayload {
     private Integer durationMinutes;
     private String posterUrl;
     private String backdropUrl;
+    /** Cast (ACTOR) names. Optional: absent in events from older producers. */
+    private List<String> castMembers;
+    /** Director names. Optional: absent in events from older producers. */
+    private List<String> directors;
     private Instant publishedAt;
 }

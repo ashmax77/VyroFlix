@@ -34,6 +34,12 @@ class CatalogControllerTest {
     @MockBean
     private CatalogService catalogService;
 
+    @MockBean
+    private com.vyroflix.content.service.CastService castService;
+
+    @MockBean
+    private com.vyroflix.content.service.CollectionService collectionService;
+
     @Test
     @DisplayName("GET /api/v1/catalog/home returns 200 with featured and rails")
     void getHomeFeed_Success() throws Exception {

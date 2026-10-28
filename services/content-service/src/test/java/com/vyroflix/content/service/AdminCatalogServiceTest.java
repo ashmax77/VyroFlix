@@ -47,6 +47,12 @@ class AdminCatalogServiceTest {
     @Mock
     private OutboxService outboxService;
 
+    @Mock
+    private com.vyroflix.content.repository.PersonRepository personRepository;
+
+    @Mock
+    private com.vyroflix.content.repository.TitleCreditRepository titleCreditRepository;
+
     @InjectMocks
     private AdminCatalogService adminCatalogService;
 
