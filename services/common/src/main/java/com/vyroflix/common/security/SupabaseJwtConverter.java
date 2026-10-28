@@ -29,6 +29,7 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_EMAIL = "email";
+    private static final String CLAIM_PLAN = "plan";
     private static final String AUTHENTICATED_ROLE = "authenticated";
 
     @Override
@@ -46,12 +47,14 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
         UUID userId = extractUserId(jwt);
         String email = jwt.getClaimAsString(CLAIM_EMAIL);
         String primaryRole = resolvePrimaryRole(jwt);
+        String plan = resolvePlan(jwt);
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
 
         return UserPrincipal.builder()
                 .userId(userId)
                 .email(email)
                 .role(primaryRole)
+                .plan(plan)
                 .authorities(authorities)
                 .claims(jwt.getClaims())
                 .build();
@@ -141,6 +144,21 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
         }
 
         return roles;
+    }
+
+    /**
+     * Subscription plan from app_metadata.plan (server-controlled). Anything missing or unknown is FREE.
+     */
+    static String resolvePlan(Jwt jwt) {
+        Map<String, Object> appMetadata = jwt.getClaimAsMap(CLAIM_APP_METADATA);
+        Object planObj = appMetadata != null ? appMetadata.get(CLAIM_PLAN) : null;
+        if (planObj instanceof String plan) {
+            String upper = plan.trim().toUpperCase();
+            if (Constants.PLAN_BASIC.equals(upper) || Constants.PLAN_PREMIUM.equals(upper)) {
+                return upper;
+            }
+        }
+        return Constants.PLAN_FREE;
     }
 
     private static String resolvePrimaryRole(Jwt jwt) {

@@ -43,7 +43,8 @@ public enum ErrorCode {
 
     // --- Watchlist / History ---
     WATCHLIST_DUPLICATE("WATCHLIST_DUPLICATE", HttpStatus.CONFLICT),
-    WATCHLIST_ENTRY_NOT_FOUND("WATCHLIST_ENTRY_NOT_FOUND", HttpStatus.NOT_FOUND);
+    WATCHLIST_ENTRY_NOT_FOUND("WATCHLIST_ENTRY_NOT_FOUND", HttpStatus.NOT_FOUND),
+    CONCURRENT_STREAM_LIMIT("CONCURRENT_STREAM_LIMIT", HttpStatus.TOO_MANY_REQUESTS);
 
     /** Machine-readable code sent in the error response body. */
     private final String code;

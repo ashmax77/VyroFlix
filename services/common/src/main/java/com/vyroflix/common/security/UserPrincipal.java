@@ -24,6 +24,8 @@ public class UserPrincipal implements Principal, Serializable {
     private final UUID userId;
     private final String email;
     private final String role;
+    /** Subscription plan (FREE, BASIC, PREMIUM). Read from app_metadata only. */
+    private final String plan;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Object> claims;
 

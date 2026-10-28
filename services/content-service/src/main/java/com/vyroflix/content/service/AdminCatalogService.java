@@ -8,6 +8,7 @@ import com.vyroflix.common.util.Constants;
 import com.vyroflix.content.dto.*;
 import com.vyroflix.content.entity.*;
 import com.vyroflix.common.event.TitlePublishedEventPayload;
+import com.vyroflix.common.event.EpisodePublishedEventPayload;
 import com.vyroflix.common.event.TitleUnpublishedEventPayload;
 import com.vyroflix.content.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -175,6 +176,7 @@ public class AdminCatalogService {
                         anyEpisodeReady = true;
                         episode.setPublicationState(PublicationState.PUBLISHED);
                         episodeRepository.save(episode);
+                        publishCatalogEpisodePublishedEvent(episode, titleId);
                     }
                 }
             }
@@ -314,6 +316,27 @@ public class AdminCatalogService {
 
         outboxService.save(EventEnvelope.of(
                 Constants.TOPIC_CATALOG_TITLE_PUBLISHED,
+                Constants.SERVICE_CONTENT,
+                UUID.randomUUID(),
+                payload
+        ));
+    }
+
+    private void publishCatalogEpisodePublishedEvent(Episode episode, UUID titleId) {
+        OutboxService outboxService = outboxServiceProvider.getIfAvailable();
+        if (outboxService == null) {
+            log.warn("OutboxService not available; skipping catalog.episode.published.v1 event");
+            return;
+        }
+
+        EpisodePublishedEventPayload payload = EpisodePublishedEventPayload.builder()
+                .episodeId(episode.getId())
+                .titleId(titleId)
+                .publishedAt(Instant.now())
+                .build();
+
+        outboxService.save(EventEnvelope.of(
+                Constants.TOPIC_CATALOG_EPISODE_PUBLISHED,
                 Constants.SERVICE_CONTENT,
                 UUID.randomUUID(),
                 payload

@@ -170,4 +170,19 @@ class SupabaseJwtConverterTest {
         }
         return names;
     }
+
+    @Test
+    @DisplayName("plan is read from app_metadata and defaults to FREE for missing or unknown values")
+    void planFromAppMetadataOnly() {
+        Jwt premium = createJwt(UUID.randomUUID().toString(), "p@example.com",
+                Map.of("plan", "premium"), Map.of("plan", "PREMIUM"), "authenticated");
+        Jwt unknown = createJwt(UUID.randomUUID().toString(), "u@example.com",
+                Map.of("plan", "GOLD"), Map.of(), "authenticated");
+        Jwt none = createJwt(UUID.randomUUID().toString(), "n@example.com",
+                Map.of(), Map.of(), "authenticated");
+
+        assertEquals("PREMIUM", ((UserPrincipal) converter.convert(premium).getPrincipal()).getPlan());
+        assertEquals("FREE", ((UserPrincipal) converter.convert(unknown).getPrincipal()).getPlan());
+        assertEquals("FREE", ((UserPrincipal) converter.convert(none).getPrincipal()).getPlan());
+    }
 }

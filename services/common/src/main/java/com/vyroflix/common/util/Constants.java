@@ -32,6 +32,7 @@ public final class Constants {
     public static final String TOPIC_CATALOG_TITLE_UPDATED = "catalog.title.updated.v1";
     public static final String TOPIC_CATALOG_TITLE_PUBLISHED = "catalog.title.published.v1";
     public static final String TOPIC_CATALOG_TITLE_UNPUBLISHED = "catalog.title.unpublished.v1";
+    public static final String TOPIC_CATALOG_EPISODE_PUBLISHED = "catalog.episode.published.v1";
     public static final String TOPIC_HISTORY_PROGRESS_UPDATED = "history.progress.updated.v1";
     public static final String TOPIC_HISTORY_CONTENT_COMPLETED = "history.content.completed.v1";
     public static final String TOPIC_WATCHLIST_ITEM_ADDED = "watchlist.item.added.v1";
@@ -46,6 +47,14 @@ public final class Constants {
 
     public static final String ROLE_USER = "USER";
     public static final String ROLE_ADMIN = "ADMIN";
+
+    // ------------------------------------------------------------------ //
+    // Subscription plans (from app_metadata.plan; server-controlled)       //
+    // ------------------------------------------------------------------ //
+
+    public static final String PLAN_FREE = "FREE";
+    public static final String PLAN_BASIC = "BASIC";
+    public static final String PLAN_PREMIUM = "PREMIUM";
 
     // ------------------------------------------------------------------ //
     // Service Names (for event envelope producer field)                    //
