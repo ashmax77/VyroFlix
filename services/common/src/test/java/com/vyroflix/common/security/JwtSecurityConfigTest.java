@@ -8,7 +8,11 @@ import org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactor
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.util.ServletRequestPathUtils;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -48,6 +52,24 @@ class JwtSecurityConfigTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(SecurityFilterChain.class);
                     assertThat(context).hasSingleBean(JwtDecoder.class);
+                });
+    }
+
+    @Test
+    @DisplayName("CORS only allows configured origins and never a bare wildcard")
+    void corsUsesConfiguredOrigins() {
+        contextRunner
+                .withPropertyValues("vyroflix.security.cors-allowed-origins=https://app.example.com,https://*.vercel.app")
+                .run(context -> {
+                    CorsConfigurationSource source = context.getBean("corsConfigurationSource", CorsConfigurationSource.class);
+                    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/catalog/home");
+                    ServletRequestPathUtils.parseAndCache(request);
+                    CorsConfiguration cors = source.getCorsConfiguration(request);
+
+                    assertThat(cors).isNotNull();
+                    assertThat(cors.checkOrigin("https://app.example.com")).isEqualTo("https://app.example.com");
+                    assertThat(cors.checkOrigin("https://preview-1.vercel.app")).isEqualTo("https://preview-1.vercel.app");
+                    assertThat(cors.checkOrigin("https://evil.example.org")).isNull();
                 });
     }
 

@@ -43,7 +43,13 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserProfileResponse> getUserById(@PathVariable("id") UUID id) {
+    public ResponseEntity<UserProfileResponse> getUserById(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("id") UUID id) {
+        UUID callerId = resolveUserId(principal);
+        if (!callerId.equals(id) && !principal.isAdmin()) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "You may only view your own profile");
+        }
         UserProfileResponse response = userService.getProfile(id);
         return ResponseEntity.ok(response);
     }

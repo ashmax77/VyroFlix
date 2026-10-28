@@ -1,11 +1,14 @@
 package com.vyroflix.recommendation.controller;
 
-import com.vyroflix.common.util.Constants;
+import com.vyroflix.common.error.ApiException;
+import com.vyroflix.common.error.ErrorCode;
+import com.vyroflix.common.security.UserPrincipal;
 import com.vyroflix.recommendation.dto.RecommendationRailResponse;
 import com.vyroflix.recommendation.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -39,23 +42,15 @@ public class RecommendationController {
 
     @GetMapping("/personal")
     public ResponseEntity<RecommendationRailResponse> getPersonal(
-            @RequestHeader(value = Constants.HEADER_USER_ID, required = false) String headerUserId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
 
-        UUID userId = resolveUserId(headerUserId);
+        if (principal == null || principal.getUserId() == null) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required for personal recommendations");
+        }
+        UUID userId = principal.getUserId();
         log.debug("Fetching personal recommendations for userId={}, limit={}", userId, limit);
         RecommendationRailResponse rail = recommendationService.getPersonalRecommendations(userId, limit);
         return ResponseEntity.ok(rail);
-    }
-
-    private UUID resolveUserId(String headerUserId) {
-        if (headerUserId != null && !headerUserId.isBlank()) {
-            try {
-                return UUID.fromString(headerUserId.trim());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        // Fallback demo user ID
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 }

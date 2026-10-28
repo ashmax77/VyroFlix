@@ -32,6 +32,10 @@ services:
       - key: SUPABASE_URL
         sync: false
 
+      # Browser origins allowed by CORS (comma-separated; e.g. https://vyroflix.vercel.app)
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
       # Upstash Redis
       - key: UPSTASH_REDIS_URL
         sync: false

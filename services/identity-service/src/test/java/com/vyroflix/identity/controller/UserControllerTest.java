@@ -110,4 +110,26 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.displayName").value("Updated Name"));
     }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{id} returns 403 when a USER requests another user's profile")
+    void getById_ForbiddenForOtherUser() throws Exception {
+        UUID callerId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/users/" + UUID.randomUUID())
+                        .with(authentication(authPrincipal(callerId))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{id} returns 200 when a USER requests their own profile")
+    void getById_AllowedForSelf() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(userService.getProfile(userId)).thenReturn(UserProfileResponse.builder()
+                .id(userId).email("me@example.com").roles(Set.of("ROLE_USER")).build());
+
+        mockMvc.perform(get("/api/v1/users/" + userId)
+                        .with(authentication(authPrincipal(userId))))
+                .andExpect(status().isOk());
+    }
 }

@@ -56,13 +56,14 @@ import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguratio
 public class JwtSecurityConfig {
 
     @Bean
-    @ConditionalOnMissingBean(CorsConfigurationSource.class)
-    public CorsConfigurationSource corsConfigurationSource() {
+    // By name: Spring MVC's HandlerMappingIntrospector is also a CorsConfigurationSource and would suppress this bean.
+    @ConditionalOnMissingBean(name = "corsConfigurationSource")
+    public CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOriginPatterns(properties.getCorsAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "X-User-Id", "X-Correlation-Id"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", Constants.HEADER_CORRELATION_ID));
+        configuration.setExposedHeaders(List.of(Constants.HEADER_CORRELATION_ID));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -121,12 +122,13 @@ public class JwtSecurityConfig {
             }
             auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
             auth.requestMatchers("/actuator/health/**", "/actuator/info").permitAll();
-            auth.requestMatchers("/api/v1/auth/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll();
+            auth.requestMatchers(HttpMethod.GET, "/api/v1/recommendations/personal").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/v1/recommendations/**").permitAll();
             auth.requestMatchers("/api/v1/admin/**").hasRole(Constants.ROLE_ADMIN);
-            auth.requestMatchers(HttpMethod.POST, "/api/v1/videos/upload-intents").hasRole(Constants.ROLE_ADMIN);
+            auth.requestMatchers("/api/v1/videos/**").hasRole(Constants.ROLE_ADMIN);
+            auth.requestMatchers("/api/v1/encoding/**").hasRole(Constants.ROLE_ADMIN);
             auth.requestMatchers("/api/v1/**").authenticated();
             auth.anyRequest().permitAll();
         });

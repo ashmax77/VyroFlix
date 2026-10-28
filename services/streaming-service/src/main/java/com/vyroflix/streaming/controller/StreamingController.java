@@ -31,14 +31,14 @@ public class StreamingController {
             @Valid @RequestBody CreateSessionRequest request,
             HttpServletRequest servletRequest) {
 
-        UUID userId = resolveUserId(principal, servletRequest);
+        UUID userId = resolveUserId(principal);
         String ipAddress = servletRequest.getRemoteAddr();
 
         PlaybackSessionResponse response = streamingService.createSession(userId, request, ipAddress);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    private UUID resolveUserId(UserPrincipal principal, HttpServletRequest request) {
+    private UUID resolveUserId(UserPrincipal principal) {
         if (principal != null && principal.getUserId() != null) {
             return principal.getUserId();
         }
@@ -51,14 +51,6 @@ public class StreamingController {
             if (auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt && jwt.getSubject() != null) {
                 try {
                     return UUID.fromString(jwt.getSubject());
-                } catch (IllegalArgumentException ignored) {}
-            }
-        }
-        if (request != null) {
-            String headerId = request.getHeader(com.vyroflix.common.util.Constants.HEADER_USER_ID);
-            if (headerId != null && !headerId.isBlank()) {
-                try {
-                    return UUID.fromString(headerId.trim());
                 } catch (IllegalArgumentException ignored) {}
             }
         }

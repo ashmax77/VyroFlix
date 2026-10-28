@@ -40,8 +40,16 @@ public class SecurityProperties {
      */
     private List<String> publicEndpoints = new ArrayList<>(List.of(
             "/actuator/health/**",
-            "/actuator/info",
-            "/api/v1/auth/**"
+            "/actuator/info"
+    ));
+
+    /**
+     * Browser origins (exact or wildcard patterns such as {@code https://*.vercel.app}) allowed
+     * to call the API with credentials. Never use a bare {@code *} together with credentials.
+     */
+    private List<String> corsAllowedOrigins = new ArrayList<>(List.of(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
     ));
 
     /**
