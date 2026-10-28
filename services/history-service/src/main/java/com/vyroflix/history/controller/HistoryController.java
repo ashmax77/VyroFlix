@@ -34,6 +34,15 @@ public class HistoryController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/progress/{contentId}")
+    public ResponseEntity<ViewingProgressResponse> getProgress(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("contentId") UUID contentId) {
+
+        UUID userId = resolveUserId(principal);
+        return ResponseEntity.ok(historyService.getProgress(userId, contentId));
+    }
+
     @GetMapping("/continue-watching")
     public ResponseEntity<List<ViewingProgressResponse>> getContinueWatching(
             @AuthenticationPrincipal UserPrincipal principal,

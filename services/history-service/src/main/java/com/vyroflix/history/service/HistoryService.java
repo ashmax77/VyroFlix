@@ -117,6 +117,19 @@ public class HistoryService {
     }
 
     /**
+     * The viewer's saved progress for one playable id, used by Streaming-Service to resume playback.
+     *
+     * @throws com.vyroflix.common.error.ApiException NOT_FOUND when the viewer has no progress for it
+     */
+    @Transactional(readOnly = true)
+    public ViewingProgressResponse getProgress(UUID userId, UUID contentId) {
+        return viewingProgressRepository.findByUserIdAndContentId(userId, contentId)
+                .map(ViewingProgressResponse::from)
+                .orElseThrow(() -> new com.vyroflix.common.error.ApiException(
+                        com.vyroflix.common.error.ErrorCode.NOT_FOUND, "No viewing progress for this content"));
+    }
+
+    /**
      * Adds a title to the user's watchlist idempotently.
      */
     @Transactional

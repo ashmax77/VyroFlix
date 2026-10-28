@@ -233,4 +233,42 @@ class HistoryControllerTest {
                 .andExpect(jsonPath("$.titleId").value(titleId.toString()))
                 .andExpect(jsonPath("$.inWatchlist").value(true));
     }
+
+    @Test
+    @DisplayName("GET /api/v1/history/progress/{contentId} returns the caller's saved position")
+    void getProgress_Success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        ViewingProgressResponse response = ViewingProgressResponse.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .contentId(contentId)
+                .positionSeconds(125)
+                .durationSeconds(7200)
+                .progressPercent(1.7)
+                .completed(false)
+                .lastWatchedAt(Instant.now())
+                .build();
+
+        when(historyService.getProgress(userId, contentId)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/history/progress/" + contentId)
+                        .with(authentication(authPrincipal(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.positionSeconds").value(125))
+                .andExpect(jsonPath("$.completed").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/history/progress/{contentId} returns 404 when there is no progress")
+    void getProgress_NotFound() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        when(historyService.getProgress(userId, contentId)).thenThrow(
+                new com.vyroflix.common.error.ApiException(com.vyroflix.common.error.ErrorCode.NOT_FOUND, "none"));
+
+        mockMvc.perform(get("/api/v1/history/progress/" + contentId)
+                        .with(authentication(authPrincipal(userId))))
+                .andExpect(status().isNotFound());
+    }
 }
