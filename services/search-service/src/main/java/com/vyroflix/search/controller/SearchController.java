@@ -23,15 +23,19 @@ public class SearchController {
     public ResponseEntity<SearchResultPage> search(
             @RequestParam(value = "q", required = false) String query,
             @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "genre", required = false) String genre,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "maturity", required = false) String maturity,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size) {
 
         int boundedSize = Math.min(Math.max(size, 1), 50);
         int boundedPage = Math.max(page, 0);
         Pageable pageable = PageRequest.of(boundedPage, boundedSize);
+        Integer validYear = (year != null && year >= 1880 && year <= 2200) ? year : null;
 
-        log.debug("Executing search: query='{}', type='{}', page={}, size={}", query, type, boundedPage, boundedSize);
-        SearchResultPage result = searchService.search(query, type, pageable);
+        log.debug("Executing search: type='{}', genre='{}', page={}, size={}", type, genre, boundedPage, boundedSize);
+        SearchResultPage result = searchService.search(query, type, genre, validYear, maturity, pageable);
         return ResponseEntity.ok(result);
     }
 

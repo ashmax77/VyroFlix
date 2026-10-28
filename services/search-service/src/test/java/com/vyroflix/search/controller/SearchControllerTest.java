@@ -53,7 +53,7 @@ class SearchControllerTest {
                 .hasNext(false)
                 .build();
 
-        when(searchService.search(eq("interstellar"), isNull(), any())).thenReturn(page);
+        when(searchService.search(eq("interstellar"), isNull(), isNull(), isNull(), isNull(), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/search")
                         .param("q", "interstellar")

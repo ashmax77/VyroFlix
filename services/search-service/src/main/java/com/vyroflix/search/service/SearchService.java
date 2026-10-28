@@ -27,12 +27,27 @@ public class SearchService {
 
     @Transactional(readOnly = true)
     public SearchResultPage search(String query, String type, Pageable pageable) {
+        return search(query, type, null, null, null, pageable);
+    }
+
+    /**
+     * Search with optional genre slug, release year and maturity rating filters.
+     * Without any filter the original keyword/type paths are used unchanged.
+     */
+    @Transactional(readOnly = true)
+    public SearchResultPage search(String query, String type, String genre, Integer year, String maturity, Pageable pageable) {
         Page<SearchDocument> results;
 
         String cleanQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
         String cleanType = (type != null && !type.trim().isEmpty()) ? type.trim().toUpperCase() : null;
+        String cleanGenre = (genre != null && !genre.trim().isEmpty()) ? genre.trim().toLowerCase() : null;
+        String cleanMaturity = (maturity != null && !maturity.trim().isEmpty()) ? maturity.trim().toUpperCase() : null;
 
-        if (cleanQuery == null) {
+        boolean filtered = cleanGenre != null || year != null || cleanMaturity != null;
+        if (filtered) {
+            results = searchDocumentRepository.filteredSearch(
+                    cleanQuery, escapeLike(cleanQuery), cleanType, cleanGenre, year, cleanMaturity, pageable);
+        } else if (cleanQuery == null) {
             if (cleanType != null) {
                 results = searchDocumentRepository.findByPublicationStateAndTypeOrderByReleaseYearDesc("PUBLISHED", cleanType, pageable);
             } else {
@@ -83,6 +98,12 @@ public class SearchService {
         if (payload.getGenreSlugs() != null) {
             doc.setGenres(new ArrayList<>(payload.getGenreSlugs()));
         }
+        if (payload.getCastMembers() != null) {
+            doc.setCastMembers(new ArrayList<>(payload.getCastMembers()));
+        }
+        if (payload.getDirectors() != null) {
+            doc.setDirectors(new ArrayList<>(payload.getDirectors()));
+        }
         doc.setPosterUrl(payload.getPosterUrl());
         doc.setPublicationState("PUBLISHED");
         doc.setUpdatedAt(Instant.now());
@@ -100,6 +121,14 @@ public class SearchService {
             searchDocumentRepository.save(doc);
             log.info("Updated title publication state to UNPUBLISHED: id={}", payload.getTitleId());
         }, () -> log.debug("Title id={} not found in search index; nothing to unindex", payload.getTitleId()));
+    }
+
+    /** Escapes LIKE wildcards and the escape character itself, for use with ESCAPE '\'. */
+    static String escapeLike(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private SearchCardResponse toSearchCard(SearchDocument doc) {
