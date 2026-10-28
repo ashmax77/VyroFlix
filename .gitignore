@@ -89,3 +89,6 @@ infra/sample-media/*.m3u8
 *.bak
 *.tmp
 *.temp
+
+# TypeScript incremental build cache
+*.tsbuildinfo

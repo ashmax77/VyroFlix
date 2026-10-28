@@ -1,9 +1,6 @@
 # VyroFlix Event Catalog
 
-All cross-service state changes travel over Kafka using a **versioned event type** and a common
-envelope. Producers write an outbox row in the same transaction as the state change; the outbox
-relay publishes it. Consumers are idempotent and deduplicate on `eventId`; poison messages go to
-a `<topic>.DLT` dead-letter topic after 3 retries with exponential backoff (1s, 2s, 4s).
+Cross-service state changes travel over Kafka as **versioned** events in a common envelope. A producer writes an outbox row in the same transaction as the state change. A relay publishes it. Consumers are idempotent and deduplicate on `eventId` where the effect is not already an upsert. Failed records are retried with exponential backoff (1 s, 2 s, 4 s, three attempts) and then routed to `<topic>.DLT`.
 
 ```json
 {
@@ -16,51 +13,56 @@ a `<topic>.DLT` dead-letter topic after 3 retries with exponential backoff (1s, 
 }
 ```
 
-Idempotency: consumers whose effect is a state *upsert* (Content, Streaming, Search, Recommendation
-metadata) are naturally idempotent. Counter-style consumers (Recommendation `playback.started.v1` and
-`history.content.completed.v1`) record each `eventId` in `recommendation.processed_events` in the same
-transaction as the counter update, so a redelivery is skipped. Those consumers rethrow processing failures
-so the container retries and then dead-letters the record to `<topic>.DLT`.
+Events never contain credentials, JWTs, signed URLs, passwords, or unnecessary personal data. Topic names are defined in `com.vyroflix.common.util.Constants`.
 
-Events never contain credentials, JWTs, signed URLs, passwords, or unnecessary PII.
-Topic names are defined in `com.vyroflix.common.util.Constants`.
+## Event types
 
-## Active events (produced and consumed)
-
-| Event / topic | Producer | Consumers | Meaning |
+| Event | Producer | Consumers | Meaning |
 |---|---|---|---|
-| `video.uploaded.v1` | Video-Service | Encoding-Service | A raw upload was verified in object storage; start transcoding. |
-| `video.encoded.v1` | Encoding-Service | Streaming-Service, Content-Service | HLS output verified. Streaming caches the master-playlist key in Redis; Content marks the media asset `READY`. |
-| `catalog.title.published.v1` | Content-Service | Search-Service, Recommendation-Service | Title became `PUBLISHED`; update read models. |
-| `catalog.title.unpublished.v1` | Content-Service | Search-Service | Title became `UNPUBLISHED`; mark it so in the index. |
-| `playback.started.v1` | Streaming-Service | Recommendation-Service | A playback session was created. |
-| `history.content.completed.v1` | History-Service | Recommendation-Service | A viewer crossed the completion threshold. |
+| `video.uploaded.v1` | Video | Encoding | A raw upload was verified. Start transcoding. |
+| `video.encoded.v1` | Encoding | Streaming, Content | HLS output verified. Streaming stores the master-playlist key. Content marks the media asset `READY`. |
+| `catalog.title.published.v1` | Content | Search, Recommendation, Streaming | A title became `PUBLISHED`. Carries `castMembers` and `directors` (optional). |
+| `catalog.title.updated.v1` | Content | Search | A published title's metadata or credits changed. Same payload shape as published. |
+| `catalog.title.unpublished.v1` | Content | Search, Streaming | A title became `UNPUBLISHED`. Search marks it; Streaming stops authorising it. |
+| `catalog.episode.published.v1` | Content | Streaming | An episode became `PUBLISHED` with its series. Streaming links it to the series. |
+| `playback.started.v1` | Streaming | Recommendation | A playback session was authorised. |
+| `playback.ended.v1` | Streaming | — | A session was ended by the viewer. Produced; no consumer yet. |
+| `history.content.completed.v1` | History | Recommendation | A viewer crossed the completion threshold. |
+| `user.registered.v1` | Identity | — | First profile sync. Produced; no consumer yet. |
+| `watchlist.item.added.v1` | History | — | Watchlist add. Produced; no consumer yet. |
+| `watchlist.item.removed.v1` | History | — | Watchlist remove. Produced; no consumer yet. |
 
-## Produced, no consumer yet
+Declared constants with no producer: `catalog.title.created.v1` and `history.progress.updated.v1`. Progress is intentionally not published per heartbeat, to protect the free Kafka quota. Remove the unused constants when next touching `Constants`.
 
-| Event / topic | Producer | Notes |
-|---|---|---|
-| `user.registered.v1` | Identity-Service | Emitted on first profile sync. |
-| `watchlist.item.added.v1` | History-Service | Watchlist add. |
-| `watchlist.item.removed.v1` | History-Service | Watchlist remove. |
+## Idempotency
 
-## Declared but not yet emitted
+| Consumer | How duplicates are handled |
+|---|---|
+| Content — `video.encoded.v1` | Upsert of the asset to `READY`. Re-applying is a no-op. |
+| Streaming — `video.encoded.v1` | Upsert of the master-playlist key (database, then Redis). |
+| Streaming — catalog events | Upserts into `title_availability`. |
+| Search — catalog events | Upsert by title id. |
+| Recommendation — metadata | Upsert by title id. |
+| Recommendation — `playback.started.v1`, `history.content.completed.v1` | Each `eventId` is claimed in `recommendation.processed_events` in the same transaction as the counter update. A redelivery is skipped. |
+| Encoding — `video.uploaded.v1` | Job created once per upload intent; a second delivery does not start a second encode. |
 
-`catalog.title.created.v1`, `catalog.title.updated.v1`, `history.progress.updated.v1`,
-`playback.ended.v1` exist as constants but have no producer or consumer in the code today.
+## Failure handling
+
+Consumers rethrow processing failures so the Kafka error handler retries and then dead-letters the record. Consumers that parse a malformed record log and drop it instead of retrying, because retrying cannot fix it.
 
 ## Upload-to-playback flow
 
 ```text
-Video-Service --video.uploaded.v1--> Encoding-Service
-Encoding-Service --video.encoded.v1--> Streaming-Service (Redis key) + Content-Service (asset READY)
-Content-Service --catalog.title.published.v1--> Search-Service + Recommendation-Service
+Video     --video.uploaded.v1----------> Encoding
+Encoding  --video.encoded.v1-----------> Streaming (playlist key) + Content (asset READY)
+Content   --catalog.title.published.v1-> Search + Recommendation + Streaming (title available)
+Content   --catalog.episode.published.v1-> Streaming (episode available)
+Streaming --playback.started.v1--------> Recommendation
+History   --history.content.completed.v1-> Recommendation
 ```
 
 ## Configuration
 
 - Local: Apache Kafka (`MESSAGING_TYPE=kafka`, `KAFKA_BOOTSTRAP_SERVERS`).
-- Cloud: any SASL_SSL Kafka (`KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_*`) or the Upstash REST producer
-  (`MESSAGING_TYPE=upstash`). See [`.env.example`](../../.env.example).
-- Topics are auto-created locally; create them manually on managed clusters
-  (see [`../DEPLOYMENT_GUIDE.md`](../DEPLOYMENT_GUIDE.md)).
+- Cloud: any SASL_SSL Kafka (`KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_*`), or the Upstash REST producer (`MESSAGING_TYPE=upstash`). See [`.env.example`](../../.env.example).
+- Managed clusters need the topics and their `.DLT` topics created in advance. See [`../DEPLOYMENT_GUIDE.md`](../DEPLOYMENT_GUIDE.md).
