@@ -3,7 +3,7 @@ package com.vyroflix.recommendation.consumer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyroflix.common.util.Constants;
-import com.vyroflix.recommendation.service.RecommendationService;
+import com.vyroflix.recommendation.service.RecommendationEventProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,7 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ContentCompletedConsumer {
 
-    private final RecommendationService recommendationService;
+    private final RecommendationEventProcessor eventProcessor;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
@@ -29,13 +29,16 @@ public class ContentCompletedConsumer {
         try {
             JsonNode root = objectMapper.readTree(rawMessage);
             JsonNode payload = root.has("payload") ? root.get("payload") : root;
+            String eventId = root.hasNonNull("eventId") ? root.get("eventId").asText() : null;
 
             if (payload.has("contentId")) {
                 UUID contentId = UUID.fromString(payload.get("contentId").asText());
-                recommendationService.recordViewingProgress(contentId, true);
+                eventProcessor.onContentCompleted(eventId, contentId);
             }
         } catch (Exception e) {
-            log.error("Failed to parse history.content.completed event: {}", rawMessage, e);
+            // Rethrow: the container retries with backoff, then routes to the .DLT topic.
+            log.error("Failed to process history.content.completed event", e);
+            throw new IllegalStateException("Failed to process history.content.completed event", e);
         }
     }
 }

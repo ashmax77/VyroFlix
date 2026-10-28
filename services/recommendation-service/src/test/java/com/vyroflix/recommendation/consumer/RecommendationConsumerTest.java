@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.vyroflix.common.event.EventEnvelope;
 import com.vyroflix.common.event.TitlePublishedEventPayload;
+import com.vyroflix.recommendation.service.RecommendationEventProcessor;
 import com.vyroflix.recommendation.service.RecommendationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +27,9 @@ class RecommendationConsumerTest {
     @Mock
     private RecommendationService recommendationService;
 
+    @Mock
+    private RecommendationEventProcessor eventProcessor;
+
     private ObjectMapper objectMapper;
     private CatalogPublishedConsumer catalogPublishedConsumer;
     private PlaybackStartedConsumer playbackStartedConsumer;
@@ -36,8 +40,8 @@ class RecommendationConsumerTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         catalogPublishedConsumer = new CatalogPublishedConsumer(recommendationService, objectMapper);
-        playbackStartedConsumer = new PlaybackStartedConsumer(recommendationService, objectMapper);
-        contentCompletedConsumer = new ContentCompletedConsumer(recommendationService, objectMapper);
+        playbackStartedConsumer = new PlaybackStartedConsumer(eventProcessor, objectMapper);
+        contentCompletedConsumer = new ContentCompletedConsumer(eventProcessor, objectMapper);
     }
 
     @Test
@@ -67,12 +71,13 @@ class RecommendationConsumerTest {
     void testPlaybackStartedConsumer() throws Exception {
         UUID contentId = UUID.randomUUID();
         Map<String, Object> envelope = Map.of(
+                "eventId", "evt-1",
                 "eventType", "playback.started.v1",
                 "payload", Map.of("contentId", contentId.toString())
         );
 
         playbackStartedConsumer.consume(objectMapper.writeValueAsString(envelope));
-        verify(recommendationService).recordPlaybackStarted(eq(contentId));
+        verify(eventProcessor).onPlaybackStarted(eq("evt-1"), eq(contentId));
     }
 
     @Test
@@ -80,11 +85,26 @@ class RecommendationConsumerTest {
     void testContentCompletedConsumer() throws Exception {
         UUID contentId = UUID.randomUUID();
         Map<String, Object> envelope = Map.of(
+                "eventId", "evt-2",
                 "eventType", "history.content.completed.v1",
                 "payload", Map.of("contentId", contentId.toString())
         );
 
         contentCompletedConsumer.consume(objectMapper.writeValueAsString(envelope));
-        verify(recommendationService).recordViewingProgress(eq(contentId), eq(true));
+        verify(eventProcessor).onContentCompleted(eq("evt-2"), eq(contentId));
+    }
+
+    @Test
+    @DisplayName("Consumers rethrow processing failures so Kafka retries and dead-letters the record")
+    void testConsumersRethrowFailures() throws Exception {
+        UUID contentId = UUID.randomUUID();
+        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
+                .when(eventProcessor).onPlaybackStarted(any(), eq(contentId));
+        String message = objectMapper.writeValueAsString(Map.of(
+                "eventId", "evt-3",
+                "payload", Map.of("contentId", contentId.toString())));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> playbackStartedConsumer.consume(message))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

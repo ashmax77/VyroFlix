@@ -16,6 +16,12 @@ a `<topic>.DLT` dead-letter topic after 3 retries with exponential backoff (1s, 
 }
 ```
 
+Idempotency: consumers whose effect is a state *upsert* (Content, Streaming, Search, Recommendation
+metadata) are naturally idempotent. Counter-style consumers (Recommendation `playback.started.v1` and
+`history.content.completed.v1`) record each `eventId` in `recommendation.processed_events` in the same
+transaction as the counter update, so a redelivery is skipped. Those consumers rethrow processing failures
+so the container retries and then dead-letters the record to `<topic>.DLT`.
+
 Events never contain credentials, JWTs, signed URLs, passwords, or unnecessary PII.
 Topic names are defined in `com.vyroflix.common.util.Constants`.
 
