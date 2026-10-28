@@ -8,6 +8,7 @@ import com.vyroflix.common.util.Constants;
 import com.vyroflix.streaming.client.HistoryProgressClient;
 import com.vyroflix.streaming.dto.CreateSessionRequest;
 import com.vyroflix.streaming.dto.PlaybackSessionResponse;
+import com.vyroflix.streaming.dto.PlaybackStatsResponse;
 import com.vyroflix.streaming.entity.MasterPlaylistKey;
 import com.vyroflix.streaming.entity.PlaybackSession;
 import com.vyroflix.streaming.entity.TitleAvailability;
@@ -24,6 +25,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -154,6 +157,25 @@ public class StreamingService {
             playbackSessionRepository.save(session);
             publishPlaybackEndedEvent(session);
         });
+    }
+
+    /** Aggregate figures only: active sessions now and sessions per UTC day over the last N days (1..90). */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public PlaybackStatsResponse playbackStats1(int days) {
+        int bounded = Math.min(Math.max(days, 1), 90);
+        Instant now = Instant.now();
+        List<PlaybackStatsResponse.DailyCount> daily = playbackSessionRepository
+                .countSessionsPerDay(now.minus(Duration.ofDays(bounded)))
+                .stream()
+                .map(row -> new PlaybackStatsResponse.DailyCount(
+                        toLocalDate(row[0]), ((Number) row[1]).longValue()))
+                .toList();
+        return new PlaybackStatsResponse(
+                playbackSessionRepository.countByEndedAtIsNullAndExpiresAtAfter(now), daily);
+    }
+
+    private static LocalDate toLocalDate(Object value) {
+        return value instanceof java.sql.Date date ? date.toLocalDate() : LocalDate.parse(value.toString());
     }
 
     /** Records a title or episode's publication state from catalog events. */

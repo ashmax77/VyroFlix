@@ -17,6 +17,9 @@ class EncodingServiceApplicationTest {
     @MockBean
     private VideoUploadedConsumer videoUploadedConsumer;
 
+    @MockBean
+    private com.vyroflix.encoding.repository.EncodingJobRepository encodingJobRepository;
+
     @Test
     void contextLoads() {
     }

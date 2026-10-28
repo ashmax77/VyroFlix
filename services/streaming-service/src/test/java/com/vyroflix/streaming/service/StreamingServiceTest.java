@@ -246,6 +246,22 @@ class StreamingServiceTest {
         assertThat(saved.getValue().isPublished()).isTrue();
     }
 
+    @Test
+    @DisplayName("playbackStats maps daily rows and active sessions without any per-user data")
+    void playbackStats_AggregatesOnly() {
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 10, 1);
+        when(playbackSessionRepository.countSessionsPerDay(any(Instant.class)))
+                .thenReturn(java.util.List.<Object[]>of(new Object[]{java.sql.Date.valueOf(day), 3L}));
+        when(playbackSessionRepository.countByEndedAtIsNullAndExpiresAtAfter(any(Instant.class))).thenReturn(2L);
+
+        com.vyroflix.streaming.dto.PlaybackStatsResponse stats = streamingService.playbackStats1(7);
+
+        assertThat(stats.activeSessions()).isEqualTo(2L);
+        assertThat(stats.daily()).hasSize(1);
+        assertThat(stats.daily().get(0).date()).isEqualTo(day);
+        assertThat(stats.daily().get(0).sessions()).isEqualTo(3L);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private void publishedTitle(UUID id, UUID parent) {
