@@ -27,6 +27,8 @@ import {
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { ErrorState, Spinner } from '../../components/common';
+import AnalyticsPanel from '../../components/admin/AnalyticsPanel';
+import TitleManager from '../../components/admin/TitleManager';
 import { EncodingJob, EncodingStatus, Title } from '../../types';
 import Link from 'next/link';
 
@@ -618,6 +620,18 @@ export default function AdminStudioPage() {
             </div>
           </div>
         </div>
+
+        {/* Catalog management: create, publish, unpublish and delete titles */}
+        <section className="mt-12 space-y-4">
+          <h2 className="text-lg font-bold text-white">Catalog</h2>
+          <TitleManager titles={titles} onChanged={loadTitles} />
+        </section>
+
+        {/* Platform analytics, each figure from the service that owns it */}
+        <section className="mt-12 space-y-4">
+          <h2 className="text-lg font-bold text-white">Analytics</h2>
+          <AnalyticsPanel />
+        </section>
       </main>
 
       <Footer />
