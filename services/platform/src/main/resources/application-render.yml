@@ -63,6 +63,14 @@ spring:
       enable-auto-commit: false
 
 vyroflix:
+  # Playback authorisation calls History in-process over loopback (fail-open, see HistoryProgressClient).
+  services:
+    history-url: ${HISTORY_SERVICE_URL:http://localhost:${PORT:8081}}
+  # Set PLAYBACK_CDN_BASE_URL to the Cloudflare Worker route to enable signed CDN playback.
+  # PLAYBACK_SIGNING_SECRET must match the Worker's HLS_SIGNING_SECRET (>= 32 characters).
+  playback:
+    cdn-base-url: ${PLAYBACK_CDN_BASE_URL:}
+    signing-secret: ${PLAYBACK_SIGNING_SECRET:}
   # Cloudflare R2 (S3-compatible) — bound to StorageProperties
   storage:
     provider: R2

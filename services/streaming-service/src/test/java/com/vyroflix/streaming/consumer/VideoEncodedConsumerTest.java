@@ -60,7 +60,7 @@ class VideoEncodedConsumerTest {
 
         consumer.consume(json);
 
-        verify(streamingService).cacheMasterPlaylistKey(contentId, playlistKey);
+        verify(streamingService).registerMasterPlaylistKey(contentId, playlistKey);
     }
 
     @Test

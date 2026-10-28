@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,29 +32,29 @@ public class StreamingController {
             @Valid @RequestBody CreateSessionRequest request,
             HttpServletRequest servletRequest) {
 
-        UUID userId = resolveUserId(principal);
-        String ipAddress = servletRequest.getRemoteAddr();
-
-        PlaybackSessionResponse response = streamingService.createSession(userId, request, ipAddress);
+        UUID userId = requireUserId(principal);
+        PlaybackSessionResponse response = streamingService.createSession(
+                userId,
+                principal.getPlan(),
+                servletRequest.getHeader(HttpHeaders.AUTHORIZATION),
+                request,
+                servletRequest.getRemoteAddr());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    private UUID resolveUserId(UserPrincipal principal) {
-        if (principal != null && principal.getUserId() != null) {
-            return principal.getUserId();
+    @PostMapping("/sessions/{sessionId}/end")
+    public ResponseEntity<Void> endSession(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("sessionId") UUID sessionId) {
+
+        streamingService.endSession(requireUserId(principal), sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private static UUID requireUserId(UserPrincipal principal) {
+        if (principal == null || principal.getUserId() == null) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required for playback");
         }
-        org.springframework.security.core.Authentication auth =
-                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null) {
-            if (auth.getPrincipal() instanceof UserPrincipal up && up.getUserId() != null) {
-                return up.getUserId();
-            }
-            if (auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt && jwt.getSubject() != null) {
-                try {
-                    return UUID.fromString(jwt.getSubject());
-                } catch (IllegalArgumentException ignored) {}
-            }
-        }
-        throw new ApiException(ErrorCode.UNAUTHORIZED, "Authentication required to initiate playback session");
+        return principal.getUserId();
     }
 }

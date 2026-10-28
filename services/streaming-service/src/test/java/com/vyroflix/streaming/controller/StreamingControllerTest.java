@@ -49,6 +49,7 @@ class StreamingControllerTest {
                 .userId(userId)
                 .email("user@vyroflix.com")
                 .role("USER")
+                .plan("FREE")
                 .build();
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
@@ -75,7 +76,7 @@ class StreamingControllerTest {
                 .resumePositionSeconds(0)
                 .build();
 
-        when(streamingService.createSession(eq(userId), any(CreateSessionRequest.class), any()))
+        when(streamingService.createSession(eq(userId), any(), any(), any(CreateSessionRequest.class), any()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/api/v1/streaming/sessions")
@@ -99,6 +100,26 @@ class StreamingControllerTest {
         mockMvc.perform(post("/api/v1/streaming/sessions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/streaming/sessions/{id}/end returns 204 for the owner")
+    void endSession_NoContent() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/v1/streaming/sessions/" + sessionId + "/end")
+                        .with(authentication(authPrincipal(userId))))
+                .andExpect(status().isNoContent());
+
+        org.mockito.Mockito.verify(streamingService).endSession(userId, sessionId);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/streaming/sessions/{id}/end returns 401 when unauthenticated")
+    void endSession_Unauthenticated() throws Exception {
+        mockMvc.perform(post("/api/v1/streaming/sessions/" + UUID.randomUUID() + "/end"))
                 .andExpect(status().isUnauthorized());
     }
 }
