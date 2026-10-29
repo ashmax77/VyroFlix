@@ -1,167 +1,62 @@
+'use client';
+
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { Play, Sparkles, Tv, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/common';
+import { useAuth } from '@/lib/auth-context';
+
+// Concurrent-stream limits per plan, as enforced by Streaming-Service. Plans are set by an administrator for now.
+const PLANS = [
+  { name: 'Free', streams: 1, note: 'Watch on one screen at a time.' },
+  { name: 'Basic', streams: 2, note: 'Two screens at once.' },
+  { name: 'Premium', streams: 4, note: 'Up to four screens at once.' },
+] as const;
 
 export default function LandingPage() {
-  const plans = [
-    {
-      name: 'Free',
-      price: '$0',
-      period: 'forever',
-      description: 'Standard definition streaming with full community catalog access.',
-      features: ['480p SD Resolution', '1 Concurrent Stream', 'Standard Stereo Audio', 'Ad-supported'],
-      popular: false,
-    },
-    {
-      name: 'Basic',
-      price: '$5.99',
-      period: 'per month',
-      description: 'High-definition streaming without ads on any screen.',
-      features: ['720p HD Resolution', '2 Concurrent Streams', 'Dolby Digital Audio', 'Watchlist & History Sync'],
-      popular: false,
-    },
-    {
-      name: 'Premium',
-      price: '$9.99',
-      period: 'per month',
-      description: 'Crisp 1080p Full HD with unlimited device syncing.',
-      features: ['1080p Full HD Resolution', '4 Concurrent Streams', 'Dolby Atmos Spatial Audio', 'Unlimited Watchlist', 'Priority Edge CDN'],
-      popular: true,
-    },
-  ];
+  const router = useRouter();
+  const { isAuthed, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && isAuthed) router.replace('/browse');
+  }, [isAuthed, loading, router]);
+
+  if (loading || isAuthed) {
+    return <Spinner label="Opening VyroFlix…" />;
+  }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
-      {/* Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 py-20 lg:py-32 flex flex-col items-center text-center">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-xs font-semibold text-primary mb-6">
-          <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span>Next-Gen Cloud-Native VOD Platform</span>
-        </div>
-
-        <h1 className="font-heading font-extrabold text-4xl sm:text-6xl lg:text-7xl max-w-4xl tracking-tight leading-tight mb-6">
-          Unlimited stories.{' '}
-          <span className="text-primary">One beautiful stream.</span>
-        </h1>
-
-        <p className="max-w-2xl text-muted-foreground text-base sm:text-lg mb-10 leading-relaxed">
-          Experience ultra-low latency, multi-rendition HLS streaming packaged with FFmpeg and delivered via Cloudflare edge CDN. No buffering, pure cinema.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <Button
-            variant="default"
-            size="lg"
-            asChild
-            className="h-[3.25rem] px-8 text-base font-bold  hover:"
-          >
-            <Link href="/register">
-              <Play className="w-5 h-5 fill-current mr-1" />
-              <span>Start Free Trial</span>
-            </Link>
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="lg"
-            asChild
-            className="h-[3.25rem] px-8 text-base font-semibold"
-          >
-            <Link href="/browse" className="flex items-center gap-2">
-              <span>Explore Catalog</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* Feature Highlights */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="panel p-8 rounded-card border border-border">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-5 text-white ">
-            <Zap className="w-6 h-6" />
-          </div>
-          <h3 className="font-heading font-bold text-xl text-foreground mb-2">Adaptive HLS Streaming</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Multi-rendition encoding from 480p to 1080p with instant adaptive bitrate switching based on your network conditions.
+    <div>
+      <section className="mx-auto grid max-w-container gap-10 px-4 pb-16 pt-12 sm:px-6 md:pt-20 lg:grid-cols-[1.1fr_1fr] lg:items-end lg:px-10">
+        <div>
+          <h1 className="font-heading text-5xl font-semibold leading-[1.02] tracking-tight sm:text-7xl">
+            Films and series that pick up where you left off.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            Sign in to keep a list, resume anything on any screen, and get recommendations from what you have watched.
           </p>
-        </div>
-
-        <div className="panel p-8 rounded-card border border-border">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-5 text-white ">
-            <Tv className="w-6 h-6" />
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button size="lg" asChild>
+              <Link href="/register">Create an account</Link>
+            </Button>
+            <Button size="lg" variant="secondary" asChild>
+              <Link href="/browse">Browse as guest</Link>
+            </Button>
           </div>
-          <h3 className="font-heading font-bold text-xl text-foreground mb-2">Pick Up Where You Left Off</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Continue Watching rail automatically syncs playback position across devices with an automated 90% completion trigger.
-          </p>
         </div>
 
-        <div className="panel p-8 rounded-card border border-border">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-5 text-white ">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <h3 className="font-heading font-bold text-xl text-foreground mb-2">Edge CDN & Short-Lived Signed URLs</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Zero video bytes pass through application servers. Direct Cloudflare R2 / MinIO playback authorized with short-lived tokens.
-          </p>
-        </div>
-      </section>
-
-      {/* Subscription Plans Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-        <h2 className="font-heading font-extrabold text-3xl sm:text-4xl text-foreground mb-4">
-          Choose Your Plan
-        </h2>
-        <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base mb-12">
-          Transparent, low-cost pricing designed for cinema enthusiasts and creators.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative panel rounded-card p-8 flex flex-col justify-between border ${
-                plan.popular
-                  ? 'border-primary  bg-surface-elevated/95'
-                  : 'border-border'
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-primary text-[11px] font-extrabold text-white tracking-wider uppercase ">
-                  Most Popular
-                </div>
-              )}
-
-              <div>
-                <h3 className="font-heading font-bold text-2xl text-foreground mb-2">{plan.name}</h3>
-                <div className="flex items-baseline space-x-1.5 mb-4">
-                  <span className="font-heading font-extrabold text-4xl text-foreground">{plan.price}</span>
-                  <span className="text-xs text-subtle">{plan.period}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-6">{plan.description}</p>
-
-                <ul className="space-y-3 mb-8 text-xs text-muted-foreground">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <Button
-                variant={plan.popular ? 'default' : 'secondary'}
-                size="lg"
-                asChild
-                className="w-full font-bold"
-              >
-                <Link href="/register">Get Started</Link>
-              </Button>
+        <dl className="grid grid-cols-1 gap-6 border-t border-border pt-6 sm:grid-cols-3 lg:grid-cols-1 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+          {PLANS.map((plan) => (
+            <div key={plan.name}>
+              <dt className="text-sm text-subtle">{plan.name}</dt>
+              <dd className="mt-1 font-heading text-3xl text-foreground">
+                {plan.streams} {plan.streams === 1 ? 'screen' : 'screens'}
+              </dd>
+              <dd className="mt-1 text-sm text-muted-foreground">{plan.note}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
     </div>
   );

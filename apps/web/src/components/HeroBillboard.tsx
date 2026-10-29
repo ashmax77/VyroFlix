@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Play, Plus, Check, Info, Pause, PlayCircle } from 'lucide-react';
-import { MaturityBadge, Skeleton } from '@/components/common';
+import { Check, Info, Pause, Play, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ApiError, redirectToLogin, toggleWatchlist, checkWatchlist } from '@/lib/api';
+import { Skeleton } from '@/components/common';
+import { ApiError } from '@/lib/api';
+import { useWatchlist } from '@/lib/watchlist-context';
 import { cn } from '@/lib/utils';
 import type { Title } from '@/types';
 
@@ -16,164 +18,144 @@ interface HeroBillboardProps {
   loading?: boolean;
 }
 
+const ROTATE_MS = 8000;
+
 export default function HeroBillboard({ title, titles, loading }: HeroBillboardProps) {
   const router = useRouter();
+  const { has, toggle, ready } = useWatchlist();
   const titleList: Title[] = titles?.length ? titles : title ? [title] : [];
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [inList, setInList] = useState(false);
-  const [isToggling, setIsToggling] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (paused || titleList.length <= 1) return;
-    const interval = setInterval(() => {
-      setIndex((curr) => (curr + 1) % titleList.length);
-    }, 8000);
-    return () => clearInterval(interval);
+    const id = setInterval(() => setIndex((i) => (i + 1) % titleList.length), ROTATE_MS);
+    return () => clearInterval(id);
   }, [paused, titleList.length]);
 
-  const activeTitle = titleList[index];
-
-  useEffect(() => {
-    if (!activeTitle) return;
-    let mounted = true;
-    checkWatchlist(activeTitle.id).then((val) => {
-      if (mounted) setInList(val);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [activeTitle]);
-
-  const handleToggleList = async () => {
-    if (!activeTitle || isToggling) return;
-    setIsToggling(true);
-    try {
-      const updated = await toggleWatchlist(activeTitle.id, inList);
-      setInList(updated);
-    } catch (err) {
-      if (err instanceof ApiError && err.isUnauthorized) redirectToLogin();
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
-  if (loading || !activeTitle) {
+  if (loading || titleList.length === 0) {
     return (
-      <div className="relative h-[78vh] min-h-[520px]">
-        <Skeleton className="absolute inset-0 rounded-none" />
+      <div className="h-[min(72vh,720px)] min-h-[420px] w-full">
+        <Skeleton className="h-full w-full rounded-none" />
       </div>
     );
   }
 
-  const matchPercent = 95 + (activeTitle.id.charCodeAt(0) % 5);
+  const active = titleList[Math.min(index, titleList.length - 1)];
+  const inList = has(active.id);
+  const runtime = active.type === 'SERIES'
+    ? `${active.seasons?.length || 1} season${(active.seasons?.length || 1) > 1 ? 's' : ''}`
+    : null;
+  const facts = [active.releaseYear || null, active.maturityRating || null, runtime].filter(Boolean) as string[];
+
+  const onToggleList = async () => {
+    if (busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await toggle(active.id);
+    } catch (err) {
+      if (err instanceof ApiError && err.isUnauthorized) setMessage('Sign in to use My list.');
+      else setMessage("Couldn't update My list.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <section
-      className="relative h-[82vh] min-h-[560px] overflow-hidden select-none"
-      aria-roledescription="carousel"
-      aria-label="Featured titles"
-    >
-      {/* Background Backdrops crossfade */}
+    <section aria-roledescription="carousel" aria-label="Featured" className="relative h-[min(72vh,720px)] min-h-[420px] w-full overflow-hidden bg-background">
       {titleList.map((t, k) => (
-        <img
+        <div
           key={t.id}
-          src={t.backdropUrl || t.posterUrl}
-          alt={t.title}
-          className={cn(
-            'absolute inset-0 h-full w-full object-cover transition-opacity duration-1000',
-            k === index ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          aria-hidden={k !== index}
+          className={cn('absolute inset-0 transition-opacity duration-1000', k === index ? 'opacity-100' : 'pointer-events-none opacity-0')}
+        >
+          {(t.bannerUrl || t.posterUrl) && (
+            <Image
+              src={t.bannerUrl || t.posterUrl}
+              alt=""
+              fill
+              priority={k === 0}
+              sizes="100vw"
+              className="object-cover object-[center_20%]"
+            />
           )}
-        />
+        </div>
       ))}
 
-      {/* Atmospheric Overlays */}
-      <div className="absolute inset-0 bg-fade-left" />
-      <div className="absolute inset-0 bg-fade-bottom" />
+      {/* One scrim, for legibility of the copy only. */}
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-background/10" aria-hidden />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" aria-hidden />
 
-      {/* Content */}
-      <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28 z-10" key={activeTitle.id}>
-        <div className="animate-page-in max-w-2xl">
-          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
-            <PlayCircle className="h-4 w-4" /> VyroFlix {activeTitle.type === 'SERIES' ? 'Series' : 'Film'}
-          </p>
-
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-none tracking-tight text-foreground drop-shadow-lg">
-            {activeTitle.title}
+      <div key={active.id} className="animate-page-in relative mx-auto flex h-full max-w-container flex-col justify-end px-4 pb-14 sm:px-6 lg:px-10">
+        <div className="max-w-xl">
+          <h1 className="font-heading text-4xl font-semibold leading-[1.02] tracking-tight text-foreground sm:text-6xl">
+            {active.title}
           </h1>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <span className="font-semibold text-success">{matchPercent}% match</span>
-            <MaturityBadge rating={activeTitle.maturityRating || 'PG-13'} />
-            <span>{activeTitle.releaseYear}</span>
-            <span>
-              {activeTitle.type === 'SERIES'
-                ? `${activeTitle.seasons?.length || 1} Season${(activeTitle.seasons?.length || 1) > 1 ? 's' : ''}`
-                : `${activeTitle.durationMinutes || 120}m`}
-            </span>
-            {activeTitle.tags?.slice(0, 3).map((tag) => (
-              <span key={tag} className="rounded-full bg-foreground/10 px-2.5 py-0.5 text-xs text-foreground">
-                {tag}
-              </span>
-            ))}
-          </div>
+          {facts.length > 0 && (
+            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              {facts.map((f, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <span aria-hidden>·</span>}
+                  <span>{f}</span>
+                </React.Fragment>
+              ))}
+            </p>
+          )}
 
-          <p className="mt-4 line-clamp-3 max-w-xl text-base text-foreground/85 sm:text-lg leading-relaxed">
-            {activeTitle.synopsis}
-          </p>
+          {active.synopsis && (
+            <p className="mt-4 line-clamp-3 text-base leading-relaxed text-foreground/85 sm:text-lg">{active.synopsis}</p>
+          )}
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Button
-              variant="default"
-              size="lg"
-              onClick={() => router.push(`/watch/${activeTitle.id}`)}
-              className="gap-2.5 font-bold shadow-lg cursor-pointer"
-            >
-              <Play className="h-5 w-5 fill-current ml-0.5" /> Play
+            <Button size="lg" onClick={() => router.push(`/watch/${active.id}`)} className="gap-2">
+              <Play className="h-4 w-4 fill-current" aria-hidden /> Play
             </Button>
-
             <Button
               variant="secondary"
               size="lg"
-              onClick={handleToggleList}
-              disabled={isToggling}
-              className="gap-2 cursor-pointer"
+              onClick={onToggleList}
+              disabled={busy || !ready}
+              aria-label={inList ? `Remove ${active.title} from My list` : `Add ${active.title} to My list`}
+              className="gap-2"
             >
-              {inList ? <Check className="text-primary h-5 w-5" /> : <Plus className="h-5 w-5" />}
-              <span>{inList ? 'In My List' : 'My List'}</span>
+              {inList ? <Check className="h-4 w-4 text-primary" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
+              <span>{inList ? 'In My list' : 'My list'}</span>
             </Button>
-
-            <Button variant="secondary" size="lg" asChild className="gap-2 cursor-pointer">
-              <Link href={`/title/${activeTitle.id}`}>
-                <Info className="h-5 w-5" />
-                <span>More info</span>
+            <Button variant="ghost" size="lg" asChild className="gap-2">
+              <Link href={`/title/${active.id}`}>
+                <Info className="h-4 w-4" aria-hidden /> More info
               </Link>
             </Button>
           </div>
+          {message && <p role="alert" className="mt-3 text-sm text-danger">{message}</p>}
         </div>
 
-        {/* Rotation Controls and Pill Indicators */}
         {titleList.length > 1 && (
-          <div className="mt-8 flex items-center gap-2.5">
+          <div className="mt-10 flex items-center gap-3">
             <button
-              aria-label={paused ? 'Resume rotation' : 'Pause rotation'}
+              type="button"
               onClick={() => setPaused((p) => !p)}
-              className="grid h-8 w-8 place-items-center rounded-full panel hover:bg-surface-elevated transition-colors text-foreground cursor-pointer"
+              aria-label={paused ? 'Resume rotation' : 'Pause rotation'}
+              className="grid h-8 w-8 place-items-center rounded-card border border-border text-muted-foreground hover:text-foreground"
             >
-              {paused ? <Play className="h-3.5 w-3.5 ml-0.5" /> : <Pause className="h-3.5 w-3.5" />}
+              {paused ? <Play className="ml-0.5 h-3.5 w-3.5" aria-hidden /> : <Pause className="h-3.5 w-3.5" aria-hidden />}
             </button>
-            {titleList.map((t, k) => (
-              <button
-                key={t.id}
-                aria-label={`Show ${t.title}`}
-                aria-current={k === index}
-                onClick={() => setIndex(k)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all cursor-pointer',
-                  k === index ? 'w-8 bg-primary' : 'w-3 bg-foreground/30 hover:bg-foreground/60'
-                )}
-              />
-            ))}
+            <div className="flex items-center gap-2" role="group" aria-label="Choose a featured title">
+              {titleList.map((t, k) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setIndex(k)}
+                  aria-label={`Show ${t.title}`}
+                  aria-current={k === index}
+                  className={cn('h-1 rounded-full transition-all', k === index ? 'w-8 bg-primary' : 'w-4 bg-foreground/30 hover:bg-foreground/60')}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

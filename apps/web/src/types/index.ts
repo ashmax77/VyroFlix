@@ -7,6 +7,10 @@ export interface Genre {
   slug: string;
 }
 
+/**
+ * Mirrors the Content-Service TitleResponse. Movie runtime is not part of the catalog model, so there is no duration here.
+ * bannerUrl is the wide artwork (the API name; the UI calls it the backdrop).
+ */
 export interface Title {
   id: string;
   type: TitleType;
@@ -14,12 +18,10 @@ export interface Title {
   synopsis: string;
   releaseYear: number;
   maturityRating: string;
-  durationMinutes: number;
   posterUrl: string;
-  backdropUrl: string;
+  bannerUrl: string | null;
   publicationState: PublicationState;
   genres?: Genre[];
-  tags?: string[];
   seasons?: Season[];
   /** Present on single-title reads only. */
   cast?: CastMember[];
@@ -37,7 +39,8 @@ export interface Season {
   id: string;
   titleId: string;
   seasonNumber: number;
-  title: string;
+  name: string | null;
+  overview: string | null;
   episodes?: Episode[];
 }
 
@@ -45,10 +48,13 @@ export interface Episode {
   id: string;
   seasonId: string;
   episodeNumber: number;
-  title: string;
-  synopsis: string;
-  durationMinutes: number;
-  thumbnailUrl?: string;
+  name: string;
+  overview: string | null;
+  /** Seconds, when the episode has been encoded. */
+  durationSeconds: number | null;
+  thumbnailUrl: string | null;
+  publicationState: PublicationState;
+  mediaReady: boolean;
 }
 
 export interface CatalogRail {

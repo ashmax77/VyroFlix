@@ -1,6 +1,11 @@
 import {
+  CastMember,
+  Episode,
   HomeFeed,
+  PublicationState,
+  Season,
   Title,
+  TitleType,
   ViewingProgress,
   WatchlistEntry,
   PlaybackSession,
@@ -145,8 +150,21 @@ export async function fetchTitle(id: string): Promise<Title | null> {
 }
 
 /** Admin: every title regardless of publication state. */
-export function fetchAdminTitles(): Promise<Title[]> {
-  return request<Title[]>('/admin/titles', { auth: true });
+export interface AdminTitleFilters {
+  state?: PublicationState;
+  type?: TitleType;
+}
+
+export function fetchAdminTitles(filters: AdminTitleFilters = {}): Promise<Title[]> {
+  const qs = new URLSearchParams();
+  if (filters.state) qs.set('state', filters.state);
+  if (filters.type) qs.set('type', filters.type);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<Title[]>(`/admin/titles${suffix}`, { auth: true });
+}
+
+export function fetchAdminTitle(id: string): Promise<Title> {
+  return request<Title>(`/admin/titles/${encodeURIComponent(id)}`, { auth: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +235,12 @@ export async function fetchWatchlist(): Promise<WatchlistEntry[]> {
     entries.map(async (entry) => ({ ...entry, title: (await cachedTitle(entry.titleId)) ?? undefined })),
   );
   return resolved.filter((entry) => entry.title);
+}
+
+/** Title ids on the signed-in viewer's list, for one shared lookup instead of a request per card. */
+export async function fetchWatchlistTitleIds(): Promise<string[]> {
+  const entries = await request<WatchlistEntry[]>('/history/watchlist?page=0&size=200', { auth: true });
+  return entries.map((entry) => entry.titleId);
 }
 
 /** Resolves to the new "in watchlist" state; throws if the server did not accept the change. */
@@ -371,14 +395,13 @@ function railToTitles(data: { items?: RecommendationItem[] }): Title[] {
     id: item.titleId,
     type: item.type || 'MOVIE',
     title: item.title,
-    synopsis: item.reason || '',
-    releaseYear: item.releaseYear || new Date().getFullYear(),
+    synopsis: '',
+    releaseYear: item.releaseYear ?? 0,
     maturityRating: item.maturityRating || '',
-    durationMinutes: 0,
     posterUrl: item.posterUrl || '',
-    backdropUrl: item.posterUrl || '',
+    bannerUrl: null,
     publicationState: 'PUBLISHED' as const,
-    tags: item.genres || [],
+    genres: (item.genres || []).map((name) => ({ id: name, name, slug: name })),
   }));
 }
 
@@ -457,17 +480,70 @@ export function fetchEncodingStats(): Promise<Record<string, number>> {
 // Admin: title lifecycle
 // ---------------------------------------------------------------------------
 
+/** Fields accepted by POST and PUT on /admin/titles (see CreateTitleRequest and UpdateTitleRequest). */
 export interface TitleInput {
   title: string;
-  type: 'MOVIE' | 'SERIES';
+  type: TitleType;
   synopsis?: string;
   releaseYear?: number;
   maturityRating?: string;
   posterUrl?: string;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  genreIds?: string[];
 }
 
 export function createTitle(input: TitleInput): Promise<Title> {
   return request<Title>('/admin/titles', { method: 'POST', auth: true, body: input });
+}
+
+export function updateTitle(id: string, input: Partial<TitleInput>): Promise<Title> {
+  return request<Title>(`/admin/titles/${encodeURIComponent(id)}`, { method: 'PUT', auth: true, body: input });
+}
+
+export interface SeasonInput {
+  seasonNumber: number;
+  name?: string;
+  overview?: string;
+}
+
+export function addSeason(titleId: string, input: SeasonInput): Promise<Season> {
+  return request<Season>(`/admin/titles/${encodeURIComponent(titleId)}/seasons`, { method: 'POST', auth: true, body: input });
+}
+
+export interface EpisodeInput {
+  episodeNumber: number;
+  name: string;
+  overview?: string;
+  durationSeconds?: number;
+  thumbnailUrl?: string;
+}
+
+export function addEpisode(seasonId: string, input: EpisodeInput): Promise<Episode> {
+  return request<Episode>(`/admin/seasons/${encodeURIComponent(seasonId)}/episodes`, { method: 'POST', auth: true, body: input });
+}
+
+export interface PersonRecord {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export function createPerson(input: { name: string; avatarUrl?: string }): Promise<PersonRecord> {
+  return request<PersonRecord>('/admin/persons', { method: 'POST', auth: true, body: input });
+}
+
+export type CreditRole = 'ACTOR' | 'DIRECTOR' | 'WRITER' | 'PRODUCER';
+
+export interface CreditInput {
+  personId: string;
+  role: CreditRole;
+  characterName?: string;
+}
+
+/** Replaces the whole credit list for a title. Unknown person ids are rejected by the API. */
+export function setCredits(titleId: string, credits: CreditInput[]): Promise<CastMember[]> {
+  return request<CastMember[]>(`/admin/titles/${encodeURIComponent(titleId)}/credits`, { method: 'PUT', auth: true, body: { credits } });
 }
 
 export function publishTitle(id: string): Promise<Title> {
@@ -499,6 +575,34 @@ export function fetchCollections(): Promise<CollectionRail[]> {
   return request<CollectionRail[]>('/catalog/collections');
 }
 
+export interface AdminCollection {
+  id: string;
+  name: string;
+  slug: string;
+  displayOrder: number;
+  titles: { id: string; title: string; type: string; posterUrl?: string | null; publicationState?: string }[];
+}
+
+export function fetchAdminCollections(): Promise<AdminCollection[]> {
+  return request<AdminCollection[]>('/admin/collections', { auth: true });
+}
+
+export function createCollection(input: { name: string; slug: string; displayOrder: number }): Promise<AdminCollection> {
+  return request<AdminCollection>('/admin/collections', { method: 'POST', auth: true, body: input });
+}
+
+export function setCollectionTitles(id: string, titleIds: string[]): Promise<AdminCollection> {
+  return request<AdminCollection>(`/admin/collections/${encodeURIComponent(id)}/titles`, { method: 'PUT', auth: true, body: { titleIds } });
+}
+
+export function fetchAdminGenres(): Promise<GenreOption[]> {
+  return request<GenreOption[]>('/admin/genres', { auth: true });
+}
+
+export function createGenre(input: { name: string; slug: string }): Promise<GenreOption> {
+  return request<GenreOption>('/admin/genres', { method: 'POST', auth: true, body: input });
+}
+
 export interface GenreOption {
   id: string;
   name: string;
@@ -511,4 +615,36 @@ export async function fetchGenres(): Promise<GenreOption[]> {
   } catch {
     return [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Identity: the viewer's own profile.
+// ---------------------------------------------------------------------------
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  roles: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Creates or refreshes the profile row for the signed-in user. Idempotent; safe to call on every sign-in. */
+export function syncUserProfile(input: {
+  userId: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+}): Promise<UserProfile> {
+  return request<UserProfile>('/auth/sync', { method: 'POST', auth: true, body: input });
+}
+
+export function fetchMe(): Promise<UserProfile> {
+  return request<UserProfile>('/users/me', { auth: true });
+}
+
+export function updateMe(input: { displayName?: string; avatarUrl?: string }): Promise<UserProfile> {
+  return request<UserProfile>('/users/me', { method: 'PUT', auth: true, body: input });
 }

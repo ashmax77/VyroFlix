@@ -1,13 +1,20 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import VideoPlayer from '@/components/VideoPlayer';
-import { ErrorState, Spinner } from '@/components/common';
+import { Button } from '@/components/ui/button';
+import { EmptyState, ErrorState, Spinner } from '@/components/common';
 import { ApiError, fetchTitle } from '@/lib/api';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
-import { Title } from '@/types';
+import type { Title } from '@/types';
+
+/** Full-bleed stage for the player: no site chrome, one way back. */
+function Stage({ children }: { children: React.ReactNode }) {
+  return <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-black px-6 text-center">{children}</div>;
+}
 
 export default function WatchPage() {
   const params = useParams();
@@ -20,17 +27,17 @@ export default function WatchPage() {
   const [error, setError] = useState<string | null>(null);
   const slow = useSlowHint(loading);
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!titleId) return;
     setError(null);
     setLoading(true);
     fetchTitle(titleId)
       .then(setTitle)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load this title.'))
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Couldn't load this title. Try again."))
       .finally(() => setLoading(false));
-  };
+  }, [titleId]);
 
-  useEffect(load, [titleId]);
+  useEffect(load, [load]);
 
   // Series: play the requested episode; fall back to the first one. Movies play the title itself.
   const episode = useMemo(() => {
@@ -41,49 +48,69 @@ export default function WatchPage() {
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
-        <Spinner label={slow ? SLOW_LOAD_MESSAGE : undefined} />
-      </div>
+      <Stage>
+        <Spinner label={slow ? SLOW_LOAD_MESSAGE : 'Loading the player…'} />
+      </Stage>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
-        <ErrorState message={error} onRetry={load} />
-      </div>
+      <Stage>
+        <div className="w-full max-w-lg">
+          <ErrorState message={error} onRetry={load} />
+        </div>
+      </Stage>
     );
   }
 
   if (!title) {
     return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-muted-foreground">
-        <p>Title not found.</p>
-        <Link href="/browse" className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
-          Return to Browse
-        </Link>
-      </div>
+      <Stage>
+        <EmptyState
+          title="This title isn't available"
+          description="It may have been unpublished or the link is out of date."
+          action={
+            <Button variant="secondary" asChild>
+              <Link href="/browse">Back to browse</Link>
+            </Button>
+          }
+        />
+      </Stage>
     );
   }
 
   if (title.type === 'SERIES' && !episode) {
     return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-muted-foreground">
-        <p>No episodes are available for this series yet.</p>
-        <Link href={`/title/${title.id}`} className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
-          Back to details
-        </Link>
-      </div>
+      <Stage>
+        <EmptyState
+          title="No episodes yet"
+          description="This series has no published episodes to play."
+          action={
+            <Button variant="secondary" asChild>
+              <Link href={`/title/${title.id}`}>Back to details</Link>
+            </Button>
+          }
+        />
+      </Stage>
     );
   }
 
   return (
-    <VideoPlayer
-      key={episode?.id ?? title.id}
-      title={title}
-      contentId={episode?.id ?? title.id}
-      targetType={episode ? 'EPISODE' : 'MOVIE'}
-      episodeTitle={episode?.title}
-    />
+    <div className="relative">
+      <Link
+        href={`/title/${title.id}`}
+        className="absolute left-4 top-4 z-50 inline-flex items-center gap-2 rounded-card bg-black/60 px-3 py-2 text-sm text-foreground backdrop-blur-sm hover:bg-black/80"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to {title.title}
+      </Link>
+      <VideoPlayer
+        key={episode?.id ?? title.id}
+        title={title}
+        contentId={episode?.id ?? title.id}
+        targetType={episode ? 'EPISODE' : 'MOVIE'}
+        episodeTitle={episode?.name}
+      />
+    </div>
   );
 }

@@ -118,9 +118,6 @@ function LoginForm() {
             />
             <span>Remember me</span>
           </label>
-          <Link href="/login" className="text-primary hover:underline text-xs">
-            Forgot password?
-          </Link>
         </div>
 
         <Button

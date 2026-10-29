@@ -1,149 +1,103 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bookmark, Play, Trash2 } from 'lucide-react';
-import { ErrorState, Spinner } from '@/components/common';
-import { ApiError, fetchWatchlist, toggleWatchlist } from '@/lib/api';
+import { Bookmark } from 'lucide-react';
+import { Poster } from '@/components/cards/Poster';
+import { Button } from '@/components/ui/button';
+import { EmptyState, ErrorState, PosterGridSkeleton } from '@/components/common';
+import { ApiError, fetchWatchlist } from '@/lib/api';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
-import { WatchlistEntry } from '@/types';
+import type { Title } from '@/types';
 
 export default function MyListPage() {
-  const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
+  const [titles, setTitles] = useState<Title[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; unauthorized: boolean } | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const slow = useSlowHint(loading);
 
-  const loadData = async () => {
+  const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const data = await fetchWatchlist();
-      setWatchlist(data);
+      const entries = await fetchWatchlist();
+      setTitles(entries.map((e) => e.title).filter((t): t is Title => Boolean(t)));
     } catch (e) {
       const apiError = e instanceof ApiError ? e : null;
       setError({
         message: apiError?.isUnauthorized
-          ? 'Your session has expired. Please sign in again to see your list.'
-          : apiError?.message ?? 'Could not load your list.',
+          ? 'Your session has expired. Sign in again to see your list.'
+          : "Couldn't load your list. Try again.",
         unauthorized: !!apiError?.isUnauthorized,
       });
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadData();
   }, []);
 
-  const handleRemove = async (titleId: string) => {
-    setActionError(null);
-    try {
-      await toggleWatchlist(titleId, true);
-      setWatchlist((prev) => prev.filter((item) => item.titleId !== titleId));
-    } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : 'Could not remove the title. Please try again.');
-    }
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner label={slow ? SLOW_LOAD_MESSAGE : undefined} />
+      <div className="mx-auto max-w-container px-4 py-10 sm:px-6 lg:px-10" aria-busy="true">
+        <h1 className="mb-8 text-3xl sm:text-4xl">My list</h1>
+        <PosterGridSkeleton count={10} />
+        <p className="mt-6 text-sm text-muted-foreground">{slow ? SLOW_LOAD_MESSAGE : 'Loading your list…'}</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <ErrorState message={error.message} onRetry={error.unauthorized ? undefined : loadData} />
+      <div className="mx-auto max-w-container px-4 py-16 sm:px-6 lg:px-10">
+        <ErrorState message={error.message} onRetry={error.unauthorized ? undefined : load} />
         {error.unauthorized && (
-          <Link href="/login?redirect=/my-list" className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
-            Sign in
-          </Link>
+          <div className="mt-6 flex justify-center">
+            <Button asChild>
+              <Link href="/login?redirect=/my-list">Sign in</Link>
+            </Button>
+          </div>
         )}
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20 min-h-screen">
-      <div className="flex items-center space-x-3 mb-8">
-        <Bookmark className="w-7 h-7 text-primary" />
-        <h1 className="font-heading font-extrabold text-3xl sm:text-4xl text-white">
-          My List
-        </h1>
+    <div className="mx-auto max-w-container px-4 pb-16 sm:px-6 lg:px-10">
+      <header className="flex items-baseline justify-between gap-4 pt-6">
+        <h1 className="text-3xl sm:text-4xl">My list</h1>
+        {titles.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {titles.length} {titles.length === 1 ? 'title' : 'titles'}
+          </p>
+        )}
+      </header>
+
+      <div className="mt-8">
+        {titles.length === 0 ? (
+          <EmptyState
+            icon={Bookmark}
+            title="Your list is empty"
+            description="Add films and series you want to watch later. They'll wait here."
+            action={
+              <Button variant="secondary" asChild>
+                <Link href="/browse">Browse titles</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {titles.map((title) => (
+              <li key={title.id}>
+                <Poster title={title} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {actionError && <ErrorState compact message={actionError} />}
-
-      {watchlist.length === 0 ? (
-        <div className="panel p-12 rounded-card border border-border text-center max-w-lg mx-auto mt-16">
-          <Bookmark className="w-12 h-12 text-subtle mx-auto mb-4" />
-          <h3 className="font-heading font-bold text-lg text-white mb-2">Your list is empty</h3>
-          <p className="text-muted-foreground text-sm mb-6">
-            Explore our catalog of movies and series to add titles you want to watch later.
-          </p>
-          <Link
-            href="/browse"
-            className="inline-block px-6 py-3 text-primary text-white font-bold rounded-full text-sm shadow-lg hover:scale-105 transition-transform"
-          >
-            Browse Catalog
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {watchlist.map((entry) => {
-            const title = entry.title;
-            if (!title) return null;
-
-            return (
-              <div
-                key={entry.id}
-                className="group relative aspect-[2/3] rounded-card overflow-hidden bg-surface-elevated border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
-              >
-                <img
-                  src={title.posterUrl}
-                  alt={title.title}
-                  className="w-full h-full object-cover"
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
-                  <h4 className="font-heading font-bold text-sm text-white line-clamp-1 mb-1">
-                    {title.title}
-                  </h4>
-                  <div className="flex items-center space-x-2 text-[10px] text-muted-foreground mb-3">
-                    <span>{title.releaseYear}</span>
-                    <span>•</span>
-                    <span>{title.durationMinutes}m</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Link
-                      href={`/watch/${title.id}`}
-                      className="flex-1 flex items-center justify-center space-x-1 py-1.5 bg-white text-black hover:bg-gray-200 rounded-full font-bold text-xs transition-colors"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-black" />
-                      <span>Play</span>
-                    </Link>
-
-                    <button
-                      onClick={() => handleRemove(entry.titleId)}
-                      className="w-8 h-8 rounded-full border border-border bg-surface-elevated hover:bg-red-500/20 hover:border-red-500 text-white flex items-center justify-center transition-colors"
-                      title="Remove from My List"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

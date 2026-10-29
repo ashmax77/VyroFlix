@@ -1,223 +1,266 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Bell, User, Play, Bookmark, LogIn, LogOut, Shield } from 'lucide-react';
+import { LogIn, LogOut, Menu, Search, Shield, User, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+type NavLink = { label: string; href: string; match: (path: string, type: string | null) => boolean };
+
+const LINKS: NavLink[] = [
+  { label: 'Home', href: '/browse', match: (p, t) => p === '/browse' && !t },
+  { label: 'Movies', href: '/browse?type=MOVIE', match: (p, t) => p === '/browse' && t === 'MOVIE' },
+  { label: 'Series', href: '/browse?type=SERIES', match: (p, t) => p === '/browse' && t === 'SERIES' },
+  { label: 'My list', href: '/my-list', match: (p) => p === '/my-list' },
+];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Read the `type` filter from the URL on the client; avoids useSearchParams' Suspense requirement on static pages.
+  const [typeParam, setTypeParam] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthed, isAdmin, signOut } = useAuth();
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      router.push('/search');
-    }
-  };
+  useEffect(() => {
+    setTypeParam(new URLSearchParams(window.location.search).get('type'));
+    setMobileOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 30);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+    const onClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         setUserMenuOpen(false);
+        setMobileOpen(false);
+        setSearchOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
-  const navLinks = [
-    { label: 'Home', href: '/browse' },
-    { label: 'Movies', href: '/browse?type=MOVIE' },
-    { label: 'Series', href: '/browse?type=SERIES' },
-    { label: 'My List', href: '/my-list' },
-    ...(isAdmin ? [{ label: 'Studio', href: '/admin', adminOnly: true }] : []),
-  ];
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    router.push(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
+    setSearchOpen(false);
+  };
+
+  const signOutNow = async () => {
+    setUserMenuOpen(false);
+    setMobileOpen(false);
+    await signOut();
+    router.push('/login');
+  };
+
+  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : '';
 
   return (
-    <nav
+    <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled ? 'panel py-3' : 'bg-gradient-to-b from-background/95 via-background/60 to-transparent py-5'
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color] duration-300',
+        scrolled || mobileOpen ? 'border-b border-border bg-background/95 backdrop-blur-sm' : 'border-b border-transparent bg-transparent'
       )}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        {/* Left: Brand & Navigation */}
-        <div className="flex items-center space-x-8">
-          <Link href="/browse" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center  group-hover:scale-105 transition-transform">
-              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
-            </div>
-            <span className="font-heading font-extrabold text-xl tracking-wider text-white">
-              VYRO<span className="text-primary">FLIX</span>
-            </span>
-          </Link>
+      <nav aria-label="Main" className="mx-auto flex h-nav max-w-container items-center gap-6 px-4 sm:px-6 lg:px-10">
+        <Link href="/browse" className="font-heading text-xl font-semibold tracking-tight text-foreground" aria-label="VyroFlix home">
+          VyroFlix
+        </Link>
 
-          <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
+        <ul className="hidden items-center gap-6 text-sm md:flex">
+          {LINKS.map((link) => {
+            const active = link.match(pathname, typeParam);
+            return (
+              <li key={link.label}>
                 <Link
-                  key={link.label}
                   href={link.href}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'transition-colors hover:text-white flex items-center gap-1.5',
-                    isActive ? 'text-white font-semibold' : 'text-muted-foreground'
+                    'border-b-2 pb-1 transition-colors',
+                    active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {link.label}
-                  {link.adminOnly && (
-                    <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] font-bold text-primary">
-                      ADMIN
-                    </span>
-                  )}
                 </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Search, Notifications, Profile / Login */}
-        <div className="flex items-center space-x-4 sm:space-x-5">
-          {/* Search Bar */}
-          <div className="relative flex items-center">
-            {searchOpen ? (
-              <form onSubmit={handleSearchSubmit} className="flex items-center bg-surface-elevated/90 border border-border rounded-full px-3 py-1.5 focus-within:border-primary transition-all">
-                <Search className="w-4 h-4 text-subtle mr-2" />
-                <input
-                  type="text"
-                  placeholder="Titles, people, genres..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-sm text-foreground focus:outline-none w-36 sm:w-56"
-                  autoFocus
-                  onBlur={() => !searchQuery && setSearchOpen(false)}
-                />
-              </form>
-            ) : (
-              <button
-                onClick={() => {
-                  setSearchOpen(true);
-                  if (pathname !== '/search') {
-                    router.push('/search');
-                  }
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                aria-label="Search"
+              </li>
+            );
+          })}
+          {isAdmin && (
+            <li>
+              <Link
+                href="/admin"
+                aria-current={pathname.startsWith('/admin') ? 'page' : undefined}
+                className={cn(
+                  'border-b-2 pb-1 transition-colors',
+                  pathname.startsWith('/admin') ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
               >
-                <Search className="w-5 h-5" />
-              </button>
-            )}
-          </div>
+                Studio
+              </Link>
+            </li>
+          )}
+        </ul>
 
-          {/* Watchlist shortcut */}
-          <Link
-            href="/my-list"
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 relative hidden sm:block"
-            aria-label="My Watchlist"
-          >
-            <Bookmark className="w-5 h-5" />
-          </Link>
+        <div className="ml-auto flex items-center gap-3 sm:gap-4">
+          {/* Search: expands in place; submitting goes to /search */}
+          {searchOpen ? (
+            <form onSubmit={submitSearch} role="search" className="flex items-center gap-2">
+              <input
+                ref={searchInputRef}
+                type="search"
+                name="q"
+                aria-label="Search titles"
+                placeholder="Search titles"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => !searchQuery.trim() && setSearchOpen(false)}
+                className="h-9 w-40 rounded-card border border-border bg-surface px-3 text-sm text-foreground placeholder:text-subtle focus:border-primary focus:outline-none sm:w-64"
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-card text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" aria-hidden />
+            </button>
+          )}
 
-          {/* Notifications */}
-          <button
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 relative hidden sm:block"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary-magenta" />
-          </button>
-
-          {/* User Auth Profile / Login Button */}
           {isAuthed ? (
             <div className="relative" ref={userMenuRef}>
               <button
+                type="button"
                 onClick={() => setUserMenuOpen((o) => !o)}
-                className="flex items-center gap-2 rounded-full border border-border bg-surface-elevated p-1 hover:border-primary transition-all cursor-pointer"
-                aria-label="User menu"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Account menu"
+                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface text-xs font-semibold text-foreground transition-colors hover:border-primary"
               >
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white uppercase">
-                  {user?.email ? user.email.slice(0, 2) : <User className="w-4 h-4" />}
-                </div>
+                {initials || <User className="h-4 w-4" aria-hidden />}
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl panel shadow-card p-2 border border-border text-sm z-50 animate-page-in">
-                  <div className="px-3 py-2 border-b border-border/60">
-                    <p className="font-semibold text-foreground truncate">{user?.email}</p>
-                    <p className="text-xs text-subtle capitalize">Role: {isAdmin ? 'Administrator' : 'Viewer'}</p>
+                <div role="menu" className="panel absolute right-0 mt-2 w-60 p-2 text-sm shadow-none">
+                  <div className="border-b border-border px-3 py-2">
+                    <p className="truncate font-medium text-foreground">{user?.email}</p>
+                    <p className="text-xs text-subtle">{isAdmin ? 'Studio administrator' : 'Viewer'}</p>
                   </div>
-
                   <div className="py-1">
-                    <Link
-                      href="/my-list"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-surface-elevated rounded-lg transition-colors"
-                    >
-                      <Bookmark className="w-4 h-4" /> My List
+                    <Link role="menuitem" href="/account" className="block rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
+                      Account
                     </Link>
-
+                    <Link role="menuitem" href="/my-list" className="block rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
+                      My list
+                    </Link>
                     {isAdmin && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 text-primary hover:bg-surface-elevated rounded-lg transition-colors"
-                      >
-                        <Shield className="w-4 h-4" /> Studio Dashboard
+                      <Link role="menuitem" href="/admin" className="flex items-center gap-2 rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
+                        <Shield className="h-4 w-4" aria-hidden /> Studio
                       </Link>
                     )}
                   </div>
-
-                  <div className="pt-1 border-t border-border/60">
+                  <div className="border-t border-border pt-1">
                     <button
-                      onClick={async () => {
-                        setUserMenuOpen(false);
-                        await signOut();
-                        router.push('/login');
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer text-left"
+                      type="button"
+                      role="menuitem"
+                      onClick={signOutNow}
+                      className="flex w-full items-center gap-2 rounded-card px-3 py-2 text-left text-danger hover:bg-danger/10"
                     >
-                      <LogOut className="w-4 h-4" /> Sign out
+                      <LogOut className="h-4 w-4" aria-hidden /> Sign out
                     </button>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              asChild
-              className="font-semibold "
-            >
-              <Link href="/login" className="flex items-center gap-1.5">
-                <LogIn className="w-4 h-4" />
+            <Button variant="default" size="sm" asChild className="hidden sm:inline-flex">
+              <Link href="/login">
+                <LogIn className="h-4 w-4" aria-hidden />
                 <span>Sign in</span>
               </Link>
             </Button>
           )}
+
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen((o) => !o)}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            className="grid h-9 w-9 place-items-center rounded-card text-muted-foreground transition-colors hover:text-foreground md:hidden"
+          >
+            {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
+          </button>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {/* Mobile sheet: every destination reachable without hover */}
+      {mobileOpen && (
+        <div id="mobile-menu" className="border-t border-border bg-background md:hidden">
+          <ul className="flex flex-col px-4 py-3 text-base">
+            {LINKS.map((link) => (
+              <li key={link.label}>
+                <Link
+                  href={link.href}
+                  aria-current={link.match(pathname, typeParam) ? 'page' : undefined}
+                  className="block border-l-2 border-transparent px-3 py-3 text-muted-foreground aria-[current=page]:border-primary aria-[current=page]:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+            {isAdmin && (
+              <li>
+                <Link href="/admin" className="block border-l-2 border-transparent px-3 py-3 text-muted-foreground">
+                  Studio
+                </Link>
+              </li>
+            )}
+            <li>
+              {isAuthed ? (
+                <button type="button" onClick={signOutNow} className="block w-full px-3 py-3 text-left text-danger">
+                  Sign out
+                </button>
+              ) : (
+                <Link href="/login" className="block px-3 py-3 text-primary">
+                  Sign in
+                </Link>
+              )}
+            </li>
+          </ul>
+        </div>
+      )}
+    </header>
   );
 }

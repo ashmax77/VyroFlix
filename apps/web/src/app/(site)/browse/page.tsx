@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import HeroBillboard from '@/components/HeroBillboard';
 import ContentRail from '@/components/ContentRail';
-import { ErrorState, Spinner } from '@/components/common';
+import { EmptyState, ErrorState, Skeleton } from '@/components/common';
+import { Film } from 'lucide-react';
 import {
   ApiError,
   fetchHomeFeed,
@@ -26,11 +27,9 @@ function asCardTitle(item: CollectionRail['titles'][number]): Title {
     synopsis: '',
     releaseYear: 0,
     maturityRating: '',
-    durationMinutes: 0,
     posterUrl: item.posterUrl ?? '',
-    backdropUrl: item.posterUrl ?? '',
+    bannerUrl: null,
     publicationState: 'PUBLISHED',
-    tags: [],
   };
 }
 
@@ -45,7 +44,8 @@ export default function BrowsePage() {
   const { isAuthed, loading: authLoading } = useAuth();
   const slow = useSlowHint(loading);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
       // The catalog is required; everything else is optional and must never block the page.
@@ -59,54 +59,50 @@ export default function BrowsePage() {
               return [] as ViewingProgress[];
             })
           : Promise.resolve([] as ViewingProgress[]),
-        fetchTrendingRail(10),
-        isAuthed ? fetchPersonalRecommendations(10) : Promise.resolve([] as Title[]),
+        fetchTrendingRail(10).catch(() => [] as Title[]),
+        isAuthed ? fetchPersonalRecommendations(10).catch(() => [] as Title[]) : Promise.resolve([] as Title[]),
       ]);
       setContinueWatching(progressData);
       setTrending(trendingData);
       setRecommended(recData);
-      // Collections are optional: a failure here must not hide the rest of the page.
       setCollections(await fetchCollections().catch(() => []));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load the catalog.');
+      setError(e instanceof ApiError ? e.message : "Couldn't load the catalog. Try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthed]);
 
   useEffect(() => {
     if (authLoading) return;
-    setLoading(true);
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, isAuthed]);
+  }, [authLoading, loadData]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner label={slow ? SLOW_LOAD_MESSAGE : 'Loading catalog & recommendations...'} />
+      <div aria-busy="true">
+        <div className="h-[min(72vh,720px)] min-h-[420px] w-full">
+          <Skeleton className="h-full w-full rounded-none" />
+        </div>
+        <div className="mx-auto max-w-container px-4 py-10 sm:px-6 lg:px-10">
+          <p className="text-sm text-muted-foreground">{slow ? SLOW_LOAD_MESSAGE : 'Loading the catalog…'}</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <ErrorState
-          message={error}
-          onRetry={() => {
-            setLoading(true);
-            loadData();
-          }}
-        />
+      <div className="mx-auto max-w-container px-4 py-24 sm:px-6 lg:px-10">
+        <ErrorState message={error} onRetry={loadData} />
       </div>
     );
   }
 
-  if (!feed || !feed.featuredTitle) {
+  if (!feed?.featuredTitle) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        No titles available in catalog.
+      <div className="mx-auto max-w-container px-4 py-24 sm:px-6 lg:px-10">
+        <EmptyState icon={Film} title="Nothing to watch yet" description="Titles appear here once they are published." />
       </div>
     );
   }
@@ -117,58 +113,18 @@ export default function BrowsePage() {
   ];
 
   return (
-    <div className="min-h-screen pb-20">
-      {/* Cinematic Hero Billboard with Auto-advancing Rotation */}
+    <div className="pb-8">
       <HeroBillboard titles={featuredRotation} />
 
-      {/* Content Rails Section with Top10 Styling & Hover Mini-Panels */}
-      <div className="relative -mt-16 sm:-mt-24 z-20 space-y-6">
-        {/* Continue Watching Rail */}
-        {continueWatching.length > 0 && (
-          <ContentRail
-            title="Continue Watching"
-            progressItems={continueWatching}
-            onWatchlistChanged={loadData}
-          />
-        )}
-
-        {/* Dynamic Trending Rail with iconic Top 10 Outline Numbering */}
-        {trending.length > 0 && (
-          <ContentRail
-            title="Top 10 Trending Today"
-            items={trending}
-            isTop10={true}
-            onWatchlistChanged={loadData}
-          />
-        )}
-
-        {/* Personalized Recommendations Rail */}
-        {recommended.length > 0 && (
-          <ContentRail
-            title="Recommended For You"
-            items={recommended}
-            onWatchlistChanged={loadData}
-          />
-        )}
-
-        {/* Curated collections from the catalog */}
+      <div className="mt-2 space-y-2">
+        {continueWatching.length > 0 && <ContentRail title="Continue watching" progressItems={continueWatching} />}
+        {trending.length > 0 && <ContentRail title="Top 10 today" items={trending} isTop10 />}
+        {recommended.length > 0 && <ContentRail title="Recommended for you" items={recommended} />}
         {collections.map((collection) => (
-          <ContentRail
-            key={collection.id}
-            title={collection.name}
-            items={collection.titles.map(asCardTitle)}
-            onWatchlistChanged={loadData}
-          />
+          <ContentRail key={collection.id} title={collection.name} items={collection.titles.map(asCardTitle)} />
         ))}
-
-        {/* Dynamic Aggregated Catalog Rails */}
         {feed.rails.map((rail) => (
-          <ContentRail
-            key={rail.id}
-            title={rail.title}
-            items={rail.items}
-            onWatchlistChanged={loadData}
-          />
+          <ContentRail key={rail.id} title={rail.title} items={rail.items} />
         ))}
       </div>
     </div>
