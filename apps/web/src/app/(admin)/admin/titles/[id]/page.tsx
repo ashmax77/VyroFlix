@@ -16,6 +16,7 @@ import {
   createPerson,
   fetchAdminGenres,
   fetchAdminTitle,
+  fetchUploadIntentsForContent,
   publishTitle,
   setCredits,
   unpublishTitle,
@@ -24,7 +25,7 @@ import {
   type GenreOption,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { CastMember, Season, Title } from '@/types';
+import type { CastMember, Season, Title, UploadIntentResponse } from '@/types';
 
 const optionalUrl = z
   .string()
@@ -164,7 +165,78 @@ export default function TitleEditorPage() {
       <MetadataForm title={title} onSaved={(t) => { setTitle(t); flash('ok', 'Saved.'); }} onError={(m) => flash('error', m)} />
       <SeasonsSection title={title} onChanged={load} onError={(m) => flash('error', m)} />
       <CreditsSection title={title} onSaved={(cast) => setTitle((prev) => (prev ? { ...prev, cast } : prev))} onError={(m) => flash('error', m)} />
+      <MediaSection title={title} />
     </div>
+  );
+}
+
+/** What the studio can act on for an upload. Encoding is reported by its own worker, which this server does not run. */
+function uploadStatusText(intent: UploadIntentResponse): { text: string; tone: 'ok' | 'pending' | 'error' } {
+  if (intent.status === 'FAILED') return { text: 'Upload failed. Create a new upload.', tone: 'error' };
+  if (intent.status === 'UPLOADED') return { text: 'Uploaded. Waiting for the encoding worker.', tone: 'pending' };
+  if (new Date(intent.expiresAt).getTime() < Date.now()) return { text: 'Upload link expired. Create a new upload.', tone: 'error' };
+  return { text: 'Waiting for the file.', tone: 'pending' };
+}
+
+function MediaSection({ title }: { title: Title }) {
+  const [rows, setRows] = useState<{ label: string; intent: UploadIntentResponse }[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    const targets =
+      title.type === 'SERIES'
+        ? (title.seasons ?? []).flatMap((s) =>
+            (s.episodes ?? []).map((ep) => ({ id: ep.id, label: `Season ${s.seasonNumber}, episode ${ep.episodeNumber}: ${ep.name}` })),
+          )
+        : [{ id: title.id, label: title.title }];
+    try {
+      const lists = await Promise.all(
+        targets.map(async (t) => (await fetchUploadIntentsForContent(t.id)).map((intent) => ({ label: t.label, intent }))),
+      );
+      setRows(lists.flat());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Couldn't load upload status. Try again.");
+    }
+  }, [title]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <section aria-labelledby="media-heading" className="border-t border-border pt-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="media-heading" className="text-xl text-foreground">Media</h2>
+        <Link href="/admin/uploads" className="text-sm text-primary underline-offset-4 hover:underline">Upload a file</Link>
+      </div>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+        Files upload straight to storage. The encoding worker turns each upload into streams, and viewers can play a title once that finishes.
+      </p>
+
+      {error ? (
+        <div className="mt-6"><ErrorState compact message={error} onRetry={load} /></div>
+      ) : rows === null ? (
+        <Skeleton className="mt-6 h-16 w-full" />
+      ) : rows.length === 0 ? (
+        <p className="mt-6 text-sm text-muted-foreground">No uploads yet for this title.</p>
+      ) : (
+        <ul className="mt-6 divide-y divide-border border-y border-border">
+          {rows.map(({ label, intent }) => {
+            const status = uploadStatusText(intent);
+            return (
+              <li key={intent.id} className="grid gap-1 py-4 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{label}</p>
+                  <p className="truncate text-xs text-muted-foreground">{intent.filename}</p>
+                </div>
+                <p className={cn('text-sm', status.tone === 'error' ? 'text-danger' : 'text-muted-foreground')}>{status.text}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

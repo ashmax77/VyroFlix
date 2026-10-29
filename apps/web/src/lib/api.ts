@@ -183,6 +183,16 @@ export function createPlaybackSession(
   });
 }
 
+/** The viewer's saved position for one movie or episode. Null when there is none yet (the API answers 404). */
+export async function fetchProgress(contentId: string): Promise<ViewingProgress | null> {
+  try {
+    return await request<ViewingProgress>(`/history/progress/${encodeURIComponent(contentId)}`, { auth: true });
+  } catch (e) {
+    if (e instanceof ApiError && e.isNotFound) return null;
+    throw e;
+  }
+}
+
 /** Best-effort: progress is retried by the next heartbeat, so failures never interrupt playback. */
 export async function saveProgress(
   data: {
@@ -332,6 +342,13 @@ export function uploadFileDirectToStorage(
     };
 
     xhr.send(file);
+  });
+}
+
+/** Upload intents for one movie or one episode, newest first. The API lists them by content id. */
+export function fetchUploadIntentsForContent(contentId: string): Promise<UploadIntentResponse[]> {
+  return request<UploadIntentResponse[]>(`/videos/upload-intents/content/${encodeURIComponent(contentId)}`, {
+    auth: true,
   });
 }
 

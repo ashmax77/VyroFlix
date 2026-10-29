@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Check, Play, Plus } from 'lucide-react';
-import { ApiError, fetchTitle, fetchSimilarTitles } from '@/lib/api';
+import { ApiError, fetchProgress, fetchTitle, fetchSimilarTitles } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { formatTime } from '@/lib/utils';
 import { useWatchlist } from '@/lib/watchlist-context';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import ContentRail from '@/components/ContentRail';
@@ -24,6 +26,8 @@ export default function TitleDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [similar, setSimilar] = useState<Title[]>([]);
   const [seasonIndex, setSeasonIndex] = useState(0);
+  const [resumeAt, setResumeAt] = useState<number | null>(null);
+  const { isAuthed, loading: authLoading } = useAuth();
   const [listBusy, setListBusy] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const slow = useSlowHint(loading);
@@ -43,6 +47,27 @@ export default function TitleDetailsPage() {
   }, [titleId]);
 
   useEffect(load, [load]);
+
+  // Resume point for signed-in viewers. Series resume per episode, from the episode list, so only movies use this.
+  const loadedId = title?.id;
+  const isMovie = title?.type === 'MOVIE';
+  useEffect(() => {
+    if (authLoading || !isAuthed || !loadedId || !isMovie) {
+      setResumeAt(null);
+      return;
+    }
+    let cancelled = false;
+    fetchProgress(loadedId)
+      .then((progress) => {
+        if (!cancelled) setResumeAt(progress && !progress.completed && progress.positionSeconds > 0 ? progress.positionSeconds : null);
+      })
+      .catch(() => {
+        if (!cancelled) setResumeAt(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isAuthed, loadedId, isMovie]);
 
   const inList = title ? has(title.id) : false;
 
@@ -149,7 +174,8 @@ export default function TitleDetailsPage() {
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button size="lg" asChild className="gap-2">
               <Link href={`/watch/${title.id}`}>
-                <Play className="h-4 w-4 fill-current" aria-hidden /> Play
+                <Play className="h-4 w-4 fill-current" aria-hidden />
+                {resumeAt ? `Resume at ${formatTime(resumeAt)}` : 'Play'}
               </Link>
             </Button>
             <Button variant="secondary" size="lg" onClick={onToggleList} disabled={listBusy || !ready} className="gap-2">
