@@ -47,25 +47,30 @@ export default function BrowsePage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      // The catalog is required; everything else is optional and must never block the page.
-      const feedData = await fetchHomeFeed();
-      setFeed(feedData);
 
-      const [progressData, trendingData, recData] = await Promise.all([
-        isAuthed
-          ? fetchContinueWatching().catch((e: unknown) => {
-              if (!(e instanceof ApiError && e.isUnauthorized)) console.warn('Continue Watching unavailable:', e);
-              return [] as ViewingProgress[];
-            })
-          : Promise.resolve([] as ViewingProgress[]),
-        fetchTrendingRail(10).catch(() => [] as Title[]),
-        isAuthed ? fetchPersonalRecommendations(10).catch(() => [] as Title[]) : Promise.resolve([] as Title[]),
-      ]);
-      setContinueWatching(progressData);
-      setTrending(trendingData);
-      setRecommended(recData);
-      setCollections(await fetchCollections().catch(() => []));
+    // Every request starts at once, so a cold backend costs one wait rather than one per section.
+    // Each section appears as soon as its own response arrives; a slow rail never holds up the hero.
+    const feedRequest = fetchHomeFeed();
+    const continueRequest = isAuthed
+      ? fetchContinueWatching().catch((e: unknown) => {
+          if (!(e instanceof ApiError && e.isUnauthorized)) console.warn('Continue Watching unavailable:', e);
+          return [] as ViewingProgress[];
+        })
+      : Promise.resolve([] as ViewingProgress[]);
+    const trendingRequest = fetchTrendingRail(10).catch(() => [] as Title[]);
+    const recommendedRequest = isAuthed
+      ? fetchPersonalRecommendations(10).catch(() => [] as Title[])
+      : Promise.resolve([] as Title[]);
+    const collectionsRequest = fetchCollections().catch(() => [] as CollectionRail[]);
+
+    continueRequest.then(setContinueWatching);
+    trendingRequest.then(setTrending);
+    recommendedRequest.then(setRecommended);
+    collectionsRequest.then(setCollections);
+
+    try {
+      // The catalog feed is the one request the page cannot render without.
+      setFeed(await feedRequest);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load the catalog. Try again.");
     } finally {
