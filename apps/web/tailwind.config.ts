@@ -14,6 +14,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Raw tokens, so the named palette (booth, paper, projector, gate, film-grey) reads the same in markup.
+        booth: 'rgb(var(--booth) / <alpha-value>)',
+        paper: 'rgb(var(--paper) / <alpha-value>)',
+        projector: 'rgb(var(--projector) / <alpha-value>)',
+        screen: {
+          DEFAULT: 'rgb(var(--screen) / <alpha-value>)',
+          raised: 'rgb(var(--screen-raised) / <alpha-value>)',
+        },
+        gate: {
+          DEFAULT: 'rgb(var(--gate) / <alpha-value>)',
+          subtle: 'rgb(var(--gate-subtle) / <alpha-value>)',
+        },
+        'film-grey': 'rgb(var(--film-grey) / <alpha-value>)',
         background: 'rgb(var(--booth) / <alpha-value>)',
         foreground: 'rgb(var(--paper) / <alpha-value>)',
         surface: {

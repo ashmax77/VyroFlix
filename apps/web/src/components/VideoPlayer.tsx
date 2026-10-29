@@ -20,6 +20,12 @@ import { ApiError, createPlaybackSession, endPlaybackSession, saveProgress } fro
 import { formatTime } from '../lib/utils';
 import { Title } from '../types';
 
+// Player chrome sits over video, so it uses fixed translucent booth tones instead of the page surfaces.
+const controlButton =
+  'flex items-center justify-center rounded-full border border-white/15 bg-black/55 text-paper transition-colors hover:border-projector hover:text-projector focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector';
+const textButton =
+  'text-paper transition-colors hover:text-projector focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector rounded';
+
 interface VideoPlayerProps {
   title: Title;
   /** Playable id: the title id for movies, the episode id for episodes. Defaults to the title id. */
@@ -419,9 +425,9 @@ export default function VideoPlayer({
       {/* Loading Spinner */}
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mb-3" />
-          <p className="text-sm font-medium text-muted-foreground tracking-wide">
-            Preparing your stream...
+          <Loader2 className="w-10 h-10 text-projector animate-spin mb-3" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground" role="status">
+            Preparing your stream…
           </p>
         </div>
       )}
@@ -429,12 +435,12 @@ export default function VideoPlayer({
       {/* Error Banner */}
       {errorMsg && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-30 p-6 text-center">
-          <p className="text-red-400 font-semibold mb-4 text-base">{errorMsg}</p>
+          <p role="alert" className="text-danger font-medium mb-4 text-base">{errorMsg}</p>
           <button
             onClick={() => setRetryNonce((n) => n + 1)}
-            className="px-6 py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-gray-200 transition-colors"
+            className="px-6 py-2.5 rounded-pill bg-projector text-booth font-medium text-sm transition-colors hover:bg-projector/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
           >
-            Retry Stream
+            Try again
           </button>
         </div>
       )}
@@ -450,13 +456,13 @@ export default function VideoPlayer({
           <div className="flex items-center space-x-4">
             <button
               onClick={() => router.back()}
-              className="w-10 h-10 rounded-full panel flex items-center justify-center text-white hover:scale-105 transition-transform"
+              className={`${controlButton} w-10 h-10`}
               aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h2 className="font-heading font-bold text-lg text-white drop-shadow">
+              <h2 className="font-heading text-lg text-paper drop-shadow">
                 {title.title}
               </h2>
               {episodeTitle && (
@@ -470,27 +476,28 @@ export default function VideoPlayer({
         <div className="flex items-center justify-center space-x-8 pointer-events-auto">
           <button
             onClick={() => skipSeconds(-10)}
-            className="w-12 h-12 rounded-full panel flex items-center justify-center text-white hover:scale-110 transition-transform"
+            className={`${controlButton} w-12 h-12`}
             aria-label="Rewind 10 seconds"
           >
             <RotateCcw className="w-5 h-5" />
           </button>
 
+          {/* The play action is the one amber surface in the player. */}
           <button
             onClick={togglePlay}
-            className="w-16 h-16 rounded-full text-primary flex items-center justify-center text-white shadow-2xl shadow-primary/40 hover:scale-110 transition-transform"
+            className="flex items-center justify-center w-16 h-16 rounded-full bg-projector text-booth transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
-              <Pause className="w-7 h-7 fill-white" />
+              <Pause className="w-7 h-7 fill-booth" />
             ) : (
-              <Play className="w-7 h-7 fill-white ml-1" />
+              <Play className="w-7 h-7 fill-booth ml-1" />
             )}
           </button>
 
           <button
             onClick={() => skipSeconds(10)}
-            className="w-12 h-12 rounded-full panel flex items-center justify-center text-white hover:scale-110 transition-transform"
+            className={`${controlButton} w-12 h-12`}
             aria-label="Forward 10 seconds"
           >
             <RotateCw className="w-5 h-5" />
@@ -498,60 +505,62 @@ export default function VideoPlayer({
         </div>
 
         {/* Bottom Bar: Seek, Time, Volume, Quality, Fullscreen */}
-        <div className="flex flex-col space-y-3 pointer-events-auto panel p-4 rounded-card backdrop-blur-md">
+        <div className="flex flex-col space-y-3 pointer-events-auto rounded-card border border-white/10 bg-booth/80 p-4 backdrop-blur-md">
           {/* Progress / Seek bar */}
           <div className="relative w-full flex items-center group">
             {/* Buffered track */}
             <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 bg-white/20 rounded-full pointer-events-none"
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/25 rounded-full pointer-events-none"
               style={{ width: `${bufferedPercent}%` }}
             />
             <input
               type="range"
+              aria-label="Seek"
               min={0}
               max={duration || 100}
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-1.5 bg-surface-elevated appearance-none cursor-pointer rounded-full primary-400 focus:outline-none"
+              className="w-full h-1 bg-white/15 appearance-none cursor-pointer rounded-full accent-projector focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector"
             />
           </div>
 
           {/* Controls Bar */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-film-grey">
             {/* Left: Play/Pause, Volume, Time */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={togglePlay}
-                className="text-white hover:text-primary transition-colors"
+                className={`${textButton} p-1`}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-paper" />}
               </button>
 
               <div className="flex items-center space-x-2">
                 <button
                   onClick={toggleMute}
-                  className="text-white hover:text-primary transition-colors"
+                  className={`${textButton} p-1`}
                   aria-label="Mute"
                 >
                   {isMuted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-red-400" />
+                    <VolumeX className="w-4 h-4 text-danger" />
                   ) : (
                     <Volume2 className="w-4 h-4" />
                   )}
                 </button>
                 <input
                   type="range"
+                  aria-label="Volume"
                   min={0}
                   max={1}
                   step={0.05}
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-16 h-1 bg-surface-hover accent-primary rounded-full cursor-pointer"
+                  className="w-16 h-1 bg-white/15 accent-projector rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector"
                 />
               </div>
 
-              <span className="font-mono text-white/90">
+              <span className="font-mono text-paper/90 tabular-nums">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
             </div>
@@ -563,9 +572,11 @@ export default function VideoPlayer({
                 <div className="relative">
                   <button
                     onClick={() => setShowQualityMenu(!showQualityMenu)}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded border border-border/80 bg-surface/80 text-white hover:border-primary text-xs transition-colors"
+                    aria-haspopup="menu"
+                    aria-expanded={showQualityMenu}
+                    className="flex items-center gap-1.5 rounded border border-white/20 bg-black/50 px-2.5 py-1 text-xs text-paper transition-colors hover:border-projector focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector"
                   >
-                    <Settings className="w-3.5 h-3.5 mr-1" />
+                    <Settings className="w-3.5 h-3.5" />
                     <span>
                       {currentQuality === -1
                         ? 'Auto'
@@ -574,11 +585,16 @@ export default function VideoPlayer({
                   </button>
 
                   {showQualityMenu && (
-                    <div className="absolute bottom-9 right-0 panel rounded-lg py-1.5 shadow-xl min-w-[100px] z-30">
+                    <div
+                      role="menu"
+                      className="absolute bottom-9 right-0 z-30 min-w-[100px] rounded-card border border-gate bg-booth py-1.5 shadow-xl"
+                    >
                       <button
+                        role="menuitemradio"
+                        aria-checked={currentQuality === -1}
                         onClick={() => handleQualitySelect(-1)}
-                        className={`w-full text-left px-3 py-1 text-xs hover:bg-surface-elevated transition-colors ${
-                          currentQuality === -1 ? 'text-primary font-bold' : 'text-white'
+                        className={`w-full text-left px-3 py-1 text-xs hover:bg-screen-raised transition-colors ${
+                          currentQuality === -1 ? 'text-projector font-medium' : 'text-paper'
                         }`}
                       >
                         Auto
@@ -586,9 +602,11 @@ export default function VideoPlayer({
                       {qualityLevels.map((lvl) => (
                         <button
                           key={lvl.id}
+                          role="menuitemradio"
+                          aria-checked={currentQuality === lvl.id}
                           onClick={() => handleQualitySelect(lvl.id)}
-                          className={`w-full text-left px-3 py-1 text-xs hover:bg-surface-elevated transition-colors ${
-                            currentQuality === lvl.id ? 'text-primary font-bold' : 'text-white'
+                          className={`w-full text-left px-3 py-1 text-xs hover:bg-screen-raised transition-colors ${
+                            currentQuality === lvl.id ? 'text-projector font-medium' : 'text-paper'
                           }`}
                         >
                           {lvl.name}
@@ -602,7 +620,7 @@ export default function VideoPlayer({
               {/* Fullscreen button */}
               <button
                 onClick={toggleFullscreen}
-                className="text-white hover:text-primary transition-colors p-1"
+                className={`${textButton} p-1`}
                 aria-label="Toggle Fullscreen"
               >
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
