@@ -57,6 +57,9 @@ vyroflix:
 
   messaging:
     type: ${MESSAGING_TYPE:kafka}
+  catalog:
+    # Announces seeded titles so search and recommendations are populated (see CatalogReindexOnStartup).
+    reindex-on-startup: ${CATALOG_REINDEX_ON_STARTUP:true}
 
 management:
   endpoint:

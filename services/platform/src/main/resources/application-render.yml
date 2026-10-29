@@ -96,6 +96,9 @@ vyroflix:
     upstash:
       rest-url: ${UPSTASH_KAFKA_REST_URL:}
       rest-token: ${UPSTASH_KAFKA_REST_TOKEN:}
+  catalog:
+    # Announces the published catalog on boot so search and recommendations are populated.
+    reindex-on-startup: ${CATALOG_REINDEX_ON_STARTUP:true}
 
 management:
   endpoints:

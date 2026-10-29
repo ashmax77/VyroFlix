@@ -337,6 +337,19 @@ public class AdminCatalogService {
                 .build();
     }
 
+    /**
+     * Re-announces every published title, so read models fed by catalog events (search, recommendations, streaming
+     * availability) catch up with titles that were seeded without events. Consumers upsert, so repeats are harmless.
+     *
+     * @return how many titles were announced
+     */
+    @Transactional
+    public int republishPublishedTitles() {
+        List<Title> published = titleRepository.findByPublicationState(PublicationState.PUBLISHED);
+        published.forEach(title -> publishCatalogEvent(Constants.TOPIC_CATALOG_TITLE_PUBLISHED, title));
+        return published.size();
+    }
+
     private void publishCatalogEvent(String topic, Title title) {
         OutboxService outboxService = outboxServiceProvider.getIfAvailable();
         if (outboxService == null) {
