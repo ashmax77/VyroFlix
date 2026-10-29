@@ -1,5 +1,7 @@
 package com.vyroflix.content.controller;
 
+import com.vyroflix.common.error.ApiException;
+import com.vyroflix.common.error.ErrorCode;
 import com.vyroflix.content.dto.CastMemberResponse;
 import com.vyroflix.content.dto.CollectionDtos.CollectionResponse;
 import com.vyroflix.content.dto.GenreResponse;
@@ -15,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -22,6 +25,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/catalog")
 @RequiredArgsConstructor
 public class CatalogController {
+
+    private static final int MAX_BATCH_IDS = 50;
 
     private final CatalogService catalogService;
     private final CastService castService;
@@ -39,6 +44,15 @@ public class CatalogController {
             @RequestParam(value = "genre", required = false) String genre) {
         List<TitleResponse> titles = catalogService.listPublishedTitles(type, genre);
         return ResponseEntity.ok(titles);
+    }
+
+    /** Several published titles in one call, for lists such as My list and Continue watching. */
+    @GetMapping("/titles/batch")
+    public ResponseEntity<List<TitleResponse>> getTitlesByIds(@RequestParam("ids") Set<UUID> ids) {
+        if (ids.size() > MAX_BATCH_IDS) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Ask for at most " + MAX_BATCH_IDS + " titles at a time");
+        }
+        return ResponseEntity.ok(catalogService.listPublishedTitlesByIds(ids));
     }
 
     @GetMapping("/titles/{id}")

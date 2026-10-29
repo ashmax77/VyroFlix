@@ -42,6 +42,17 @@ public class CatalogService {
         return titles.stream().map(this::toPublicTitleResponse).collect(Collectors.toList());
     }
 
+    /** Published titles for the given ids, in one query. Unknown or unpublished ids are left out. */
+    @Transactional(readOnly = true)
+    public List<TitleResponse> listPublishedTitlesByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return titleRepository.findByIdInAndPublicationState(ids, PublicationState.PUBLISHED).stream()
+                .map(this::toPublicTitleResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public Page<TitleResponse> pagePublishedTitles(Pageable pageable) {
         return titleRepository.findByPublicationState(PublicationState.PUBLISHED, pageable)
