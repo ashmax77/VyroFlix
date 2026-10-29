@@ -6,34 +6,62 @@ import { Bookmark } from 'lucide-react';
 import { Poster } from '@/components/cards/Poster';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, PosterGridSkeleton } from '@/components/common';
-import { ApiError, fetchWatchlist } from '@/lib/api';
+import { ApiError, fetchWatchlistPage } from '@/lib/api';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { Title } from '@/types';
 
+type LoadError = { message: string; unauthorized: boolean };
+
+function toLoadError(e: unknown, action: 'load' | 'more'): LoadError {
+  const apiError = e instanceof ApiError ? e : null;
+  if (apiError?.isUnauthorized) {
+    return { message: 'Your session has expired. Sign in again to see your list.', unauthorized: true };
+  }
+  return {
+    message: action === 'load' ? "Couldn't load your list. Try again." : "Couldn't load more titles. Try again.",
+    unauthorized: false,
+  };
+}
+
 export default function MyListPage() {
   const [titles, setTitles] = useState<Title[]>([]);
+  const [nextPage, setNextPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; unauthorized: boolean } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<LoadError | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const slow = useSlowHint(loading);
 
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const entries = await fetchWatchlist();
-      setTitles(entries.map((e) => e.title).filter((t): t is Title => Boolean(t)));
+      const page = await fetchWatchlistPage(0);
+      setTitles(page.titles);
+      setHasMore(page.hasMore);
+      setNextPage(1);
     } catch (e) {
-      const apiError = e instanceof ApiError ? e : null;
-      setError({
-        message: apiError?.isUnauthorized
-          ? 'Your session has expired. Sign in again to see your list.'
-          : "Couldn't load your list. Try again.",
-        unauthorized: !!apiError?.isUnauthorized,
-      });
+      setError(toLoadError(e, 'load'));
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    setMoreError(null);
+    setLoadingMore(true);
+    try {
+      const page = await fetchWatchlistPage(nextPage);
+      setTitles((current) => [...current, ...page.titles]);
+      setHasMore(page.hasMore);
+      setNextPage((p) => p + 1);
+    } catch (e) {
+      setMoreError(toLoadError(e, 'more').message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextPage]);
 
   useEffect(() => {
     load();
@@ -70,7 +98,8 @@ export default function MyListPage() {
         <h1 className="text-3xl sm:text-4xl">My list</h1>
         {titles.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            {titles.length} {titles.length === 1 ? 'title' : 'titles'}
+            {titles.length}
+            {hasMore ? '+' : ''} {titles.length === 1 && !hasMore ? 'title' : 'titles'}
           </p>
         )}
       </header>
@@ -98,6 +127,19 @@ export default function MyListPage() {
         )}
       </div>
 
+      {moreError && (
+        <div className="mt-8">
+          <ErrorState message={moreError} onRetry={loadMore} compact />
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="mt-10 flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : 'Load more'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

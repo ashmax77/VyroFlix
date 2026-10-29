@@ -230,12 +230,24 @@ export async function fetchContinueWatching(): Promise<ViewingProgress[]> {
   return resolved.filter((item) => item.title);
 }
 
-export async function fetchWatchlist(): Promise<WatchlistEntry[]> {
-  const entries = await request<WatchlistEntry[]>('/history/watchlist', { auth: true });
+export const WATCHLIST_PAGE_SIZE = 24;
+
+/**
+ * One page of the viewer's list, newest first. `hasMore` is based on the raw page: a full page may still
+ * shrink after unpublished titles are dropped, so it is the only reliable signal that another page exists.
+ */
+export async function fetchWatchlistPage(
+  page: number,
+  size = WATCHLIST_PAGE_SIZE,
+): Promise<{ titles: Title[]; hasMore: boolean }> {
+  const entries = await request<WatchlistEntry[]>(`/history/watchlist?page=${page}&size=${size}`, { auth: true });
   const resolved = await Promise.all(
     entries.map(async (entry) => ({ ...entry, title: (await cachedTitle(entry.titleId)) ?? undefined })),
   );
-  return resolved.filter((entry) => entry.title);
+  return {
+    titles: resolved.flatMap((entry) => (entry.title ? [entry.title] : [])),
+    hasMore: entries.length === size,
+  };
 }
 
 /** Title ids on the signed-in viewer's list, for one shared lookup instead of a request per card. */
