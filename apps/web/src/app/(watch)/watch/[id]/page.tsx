@@ -42,12 +42,21 @@ export default function WatchPage() {
 
   useEffect(load, [load]);
 
-  // Series: play the requested episode; fall back to the first one. Movies play the title itself.
+  const allEpisodes = useMemo(() => {
+    if (!title || title.type !== 'SERIES') return [];
+    return (title.seasons ?? []).flatMap((season) => season.episodes ?? []);
+  }, [title]);
+
   const episode = useMemo(() => {
     if (!title || title.type !== 'SERIES') return null;
-    const episodes = (title.seasons ?? []).flatMap((season) => season.episodes ?? []);
-    return episodes.find((ep) => ep.id === episodeId) ?? episodes[0] ?? null;
-  }, [title, episodeId]);
+    return allEpisodes.find((ep) => ep.id === episodeId) ?? allEpisodes[0] ?? null;
+  }, [title, episodeId, allEpisodes]);
+
+  const nextEpisode = useMemo(() => {
+    if (!episode) return undefined;
+    const idx = allEpisodes.findIndex((e) => e.id === episode.id);
+    return idx >= 0 ? allEpisodes[idx + 1] : undefined;
+  }, [episode, allEpisodes]);
 
   if (loading || authLoading) {
     return (
@@ -74,7 +83,7 @@ export default function WatchPage() {
           title="This title isn't available"
           description="It may have been unpublished or the link is out of date."
           action={
-            <Button variant="secondary" asChild>
+            <Button variant="gradient" asChild>
               <Link href="/browse">Back to browse</Link>
             </Button>
           }
@@ -101,18 +110,13 @@ export default function WatchPage() {
 
   return (
     <div className="relative">
-      <Link
-        href={`/title/${title.id}`}
-        className="absolute left-4 top-4 z-50 inline-flex items-center gap-2 rounded-card bg-black/60 px-3 py-2 text-sm text-foreground backdrop-blur-sm hover:bg-black/80"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to {title.title}
-      </Link>
       <VideoPlayer
         key={episode?.id ?? title.id}
         title={title}
         contentId={episode?.id ?? title.id}
         targetType={episode ? 'EPISODE' : 'MOVIE'}
         episodeTitle={episode?.name}
+        nextEpisodeId={nextEpisode?.id}
       />
     </div>
   );
