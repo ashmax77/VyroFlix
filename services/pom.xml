@@ -188,6 +188,10 @@
                             <include>**/*Test.java</include>
                             <include>**/*Tests.java</include>
                         </includes>
+                        <systemPropertyVariables>
+                            <!-- Testcontainers 1.20.x speaks Docker API 1.32; Docker Engine 29 rejects it with 400. -->
+                            <api.version>1.44</api.version>
+                        </systemPropertyVariables>
                     </configuration>
                 </plugin>
 
@@ -200,6 +204,9 @@
                             <include>**/*IT.java</include>
                             <include>**/*IntegrationTest.java</include>
                         </includes>
+                        <systemPropertyVariables>
+                            <api.version>1.44</api.version>
+                        </systemPropertyVariables>
                     </configuration>
                     <executions>
                         <execution>
