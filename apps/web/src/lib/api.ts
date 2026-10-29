@@ -216,28 +216,33 @@ export async function saveProgress(
   }
 }
 
-const titleCache = new Map<string, Promise<Title | null>>();
+/** Max ids per batch request; matches the catalog endpoint. */
+const TITLE_BATCH_SIZE = 50;
 
-function cachedTitle(id: string): Promise<Title | null> {
-  let pending = titleCache.get(id);
-  if (!pending) {
-    pending = fetchTitle(id).catch(() => null);
-    titleCache.set(id, pending);
-    // Do not pin failures/misses for the whole session.
-    pending.then((t) => {
-      if (!t) titleCache.delete(id);
-    });
+/**
+ * Published titles for these ids, in one request per batch. Unknown or unpublished ids are left out, so callers
+ * drop entries whose title is gone. One request replaces one lookup per saved title, which is what made My list
+ * and Continue watching wait on a cold backend.
+ */
+export async function fetchTitlesByIds(ids: string[]): Promise<Map<string, Title>> {
+  const unique = Array.from(new Set(ids));
+  const byId = new Map<string, Title>();
+  for (let i = 0; i < unique.length; i += TITLE_BATCH_SIZE) {
+    const chunk = unique.slice(i, i + TITLE_BATCH_SIZE).map((id) => encodeURIComponent(id)).join(',');
+    const titles = await request<Title[]>(`/catalog/titles/batch?ids=${chunk}`);
+    for (const title of titles) byId.set(title.id, title);
   }
-  return pending;
+  return byId;
 }
 
 export async function fetchContinueWatching(): Promise<ViewingProgress[]> {
   const items = await request<ViewingProgress[]>('/history/continue-watching', { auth: true });
-  const resolved = await Promise.all(
-    items.map(async (item) => ({ ...item, title: (await cachedTitle(item.contentId)) ?? undefined })),
-  );
+  const titles = await fetchTitlesByIds(items.map((item) => item.contentId));
   // Entries whose title is gone/unpublished cannot be rendered or played.
-  return resolved.filter((item) => item.title);
+  return items.flatMap((item) => {
+    const title = titles.get(item.contentId);
+    return title ? [{ ...item, title }] : [];
+  });
 }
 
 export const WATCHLIST_PAGE_SIZE = 24;
@@ -251,11 +256,12 @@ export async function fetchWatchlistPage(
   size = WATCHLIST_PAGE_SIZE,
 ): Promise<{ titles: Title[]; hasMore: boolean }> {
   const entries = await request<WatchlistEntry[]>(`/history/watchlist?page=${page}&size=${size}`, { auth: true });
-  const resolved = await Promise.all(
-    entries.map(async (entry) => ({ ...entry, title: (await cachedTitle(entry.titleId)) ?? undefined })),
-  );
+  const titles = await fetchTitlesByIds(entries.map((entry) => entry.titleId));
   return {
-    titles: resolved.flatMap((entry) => (entry.title ? [entry.title] : [])),
+    titles: entries.flatMap((entry) => {
+      const title = titles.get(entry.titleId);
+      return title ? [title] : [];
+    }),
     hasMore: entries.length === size,
   };
 }
