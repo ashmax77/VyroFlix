@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Global exception handler for all Spring MVC services.
@@ -132,6 +134,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnexpected(
             Exception ex, HttpServletRequest request) {
 
+        if (isClientGone(ex)) {
+            // The browser closed the connection mid-response. Nobody is left to read a body, and this is not a server fault.
+            log.debug("Client closed the connection (path={})", request.getRequestURI());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
         log.error("Unexpected error (path={}): {}", request.getRequestURI(), ex.getMessage(), ex);
 
         ErrorResponse body = ErrorResponse.builder()
@@ -153,5 +161,21 @@ public class GlobalExceptionHandler {
     private String correlationId(HttpServletRequest request) {
         Object attr = request.getAttribute("correlationId");
         return attr != null ? attr.toString() : null;
+    }
+
+    /** Tomcat reports a closed client connection as an IOException whose message names the broken stream. */
+    static boolean isClientGone(Throwable ex) {
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            if (t instanceof IOException) {
+                String message = String.valueOf(t.getMessage()).toLowerCase(Locale.ROOT);
+                if (t.getClass().getSimpleName().equals("ClientAbortException")
+                        || message.contains("aborted")
+                        || message.contains("broken pipe")
+                        || message.contains("connection reset")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
