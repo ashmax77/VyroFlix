@@ -23,6 +23,8 @@ public class MultiSchemaFlywayMigrationConfig {
     private static final Logger log = LoggerFactory.getLogger(MultiSchemaFlywayMigrationConfig.class);
 
     private static final String[] SCHEMAS = {
+            // Shared outbox table, read by the one relay for every domain (see db/migration/public in common).
+            "public",
             "identity",
             "content",
             "video",
