@@ -14,12 +14,14 @@ import {
   addEpisode,
   addSeason,
   createPerson,
+  fetchAdminGenres,
   fetchAdminTitle,
   publishTitle,
   setCredits,
   unpublishTitle,
   updateTitle,
   type CreditRole,
+  type GenreOption,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { CastMember, Season, Title } from '@/types';
@@ -166,6 +168,10 @@ export default function TitleEditorPage() {
   );
 }
 
+function sameIds(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id));
+}
+
 function MetadataForm({ title, onSaved, onError }: { title: Title; onSaved: (t: Title) => void; onError: (m: string) => void }) {
   const form = useForm<MetaValues>({
     resolver: zodResolver(metaSchema),
@@ -179,6 +185,27 @@ function MetadataForm({ title, onSaved, onError }: { title: Title; onSaved: (t: 
     },
   });
 
+  const [genres, setGenres] = useState<GenreOption[] | null>(null);
+  const [genresError, setGenresError] = useState<string | null>(null);
+  const initialGenreIds = title.genres?.map((g) => g.id) ?? [];
+  const [savedGenreIds, setSavedGenreIds] = useState<string[]>(initialGenreIds);
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>(initialGenreIds);
+  const genresChanged = !sameIds(selectedGenreIds, savedGenreIds);
+
+  const loadGenres = useCallback(() => {
+    setGenresError(null);
+    fetchAdminGenres()
+      .then(setGenres)
+      .catch((err: unknown) => setGenresError(err instanceof ApiError ? err.message : "Couldn't load genres. Try again."));
+  }, []);
+
+  useEffect(() => {
+    loadGenres();
+  }, [loadGenres]);
+
+  const toggleGenre = (id: string) =>
+    setSelectedGenreIds((current) => (current.includes(id) ? current.filter((g) => g !== id) : [...current, id]));
+
   const onSubmit = form.handleSubmit(async (v) => {
     try {
       const updated = await updateTitle(title.id, {
@@ -188,8 +215,11 @@ function MetadataForm({ title, onSaved, onError }: { title: Title; onSaved: (t: 
         synopsis: v.synopsis || undefined,
         posterUrl: v.posterUrl || undefined,
         bannerUrl: v.bannerUrl || undefined,
+        // Omitted when unchanged: the server reads a missing list as "keep the current genres".
+        genreIds: genresChanged ? selectedGenreIds : undefined,
       });
       form.reset({ ...v });
+      setSavedGenreIds(selectedGenreIds);
       onSaved({ ...title, ...updated });
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Couldn't save. Try again.");
@@ -230,8 +260,38 @@ function MetadataForm({ title, onSaved, onError }: { title: Title; onSaved: (t: 
           <input id="m-banner" placeholder="https://" className={inputClass} aria-invalid={!!e.bannerUrl} {...form.register('bannerUrl')} />
           <FieldError message={e.bannerUrl?.message} />
         </div>
+        <fieldset className="sm:col-span-2">
+          <legend className="mb-1.5 text-sm font-medium text-foreground">Genres</legend>
+          {genresError ? (
+            <ErrorState compact message={genresError} onRetry={loadGenres} />
+          ) : genres === null ? (
+            <p className="text-sm text-muted-foreground">Loading genres…</p>
+          ) : genres.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No genres yet. <Link href="/admin/genres" className="text-primary underline-offset-4 hover:underline">Add genres first.</Link>
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {genres.map((g) => {
+                const on = selectedGenreIds.includes(g.id);
+                return (
+                  <label
+                    key={g.id}
+                    className={cn(
+                      'cursor-pointer rounded-pill border px-3 py-1.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-projector',
+                      on ? 'border-projector text-projector' : 'border-border text-foreground hover:border-subtle',
+                    )}
+                  >
+                    <input type="checkbox" className="sr-only" checked={on} onChange={() => toggleGenre(g.id)} />
+                    {g.name}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </fieldset>
         <div className="sm:col-span-2">
-          <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+          <Button type="submit" disabled={form.formState.isSubmitting || (!form.formState.isDirty && !genresChanged)}>
             {form.formState.isSubmitting ? 'Saving…' : 'Save details'}
           </Button>
         </div>
