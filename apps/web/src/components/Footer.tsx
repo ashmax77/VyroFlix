@@ -1,25 +1,38 @@
 import React from 'react';
 import Link from 'next/link';
+import { Logo } from '@/components/common';
 
-// Slim site footer. Links are plain text, so no hover-only affordances.
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t border-border">
-      <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-10 text-sm text-muted-foreground sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
-        <p className="max-w-md text-subtle">
-          Low-cost streaming built on multi-bitrate HLS and a CDN. A portfolio project, not a production service.
+    <footer className="mt-20 border-t border-border/60 pb-20 pt-10 md:pb-10">
+      <div className="mx-auto flex max-w-[1800px] flex-col gap-6 px-4 text-sm text-subtle sm:flex-row sm:items-center sm:px-8 lg:px-12">
+        <Logo size="sm" className="opacity-80" />
+        <ul className="flex flex-wrap gap-6 text-sm">
+          <li>
+            <Link href="/browse" className="hover:text-foreground transition-colors">
+              Browse
+            </Link>
+          </li>
+          <li>
+            <Link href="/my-list" className="hover:text-foreground transition-colors">
+              My List
+            </Link>
+          </li>
+          <li>
+            <Link href="/search" className="hover:text-foreground transition-colors">
+              Search
+            </Link>
+          </li>
+          <li>
+            <a href="https://github.com/ashmax77/VyroFlix" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">
+              GitHub
+            </a>
+          </li>
+        </ul>
+        <p className="text-xs text-subtle sm:ml-auto">
+          © {new Date().getFullYear()} VyroFlix · Cloud-native multi-bitrate HLS streaming
         </p>
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <Link href="/browse" className="hover:text-foreground">Browse</Link>
-          <Link href="/my-list" className="hover:text-foreground">My list</Link>
-          <a href="https://github.com/ashmax77/VyroFlix" target="_blank" rel="noreferrer" className="hover:text-foreground">
-            Source on GitHub
-          </a>
-        </div>
       </div>
-      <p className="border-t border-border px-4 py-4 text-center text-xs text-subtle sm:px-6 lg:px-10">
-        © {new Date().getFullYear()}. All rights reserved.
-      </p>
     </footer>
   );
 }

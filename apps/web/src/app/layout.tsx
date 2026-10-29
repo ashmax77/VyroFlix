@@ -1,38 +1,33 @@
 import type { Metadata } from 'next';
-import { Instrument_Sans, Instrument_Serif } from 'next/font/google';
+import { Outfit, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 
-// Titles and headings. A single-weight display serif that reads like a programme title card.
-const serif = Instrument_Serif({
+const outfit = Outfit({
   subsets: ['latin'],
-  weight: '400',
-  style: ['normal', 'italic'],
-  variable: '--font-serif',
+  variable: '--font-display',
   display: 'swap',
 });
 
-// Interface and body text.
-const sans = Instrument_Sans({
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'VyroFlix — Cinematic Streaming Experience',
-  description: 'A low-cost, cloud-native video-on-demand platform with multi-bitrate HLS streaming.',
+  title: 'VyroFlix — Unlimited stories. One beautiful stream.',
+  description: 'Stream original films and series on VyroFlix. High-fidelity cloud-native video streaming with multi-bitrate HLS.',
 };
 
-// Document shell only. Each route group supplies its own chrome (see (site), (auth), (watch), (admin)).
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
-      <body className="min-h-screen antialiased">
+    <html lang="en" className={`${outfit.variable} ${inter.variable}`}>
+      <body className="min-h-screen bg-background text-foreground antialiased selection:bg-brand-violet/30 selection:text-white">
         <Providers>{children}</Providers>
       </body>
     </html>

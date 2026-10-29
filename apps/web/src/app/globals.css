@@ -2,32 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Projection room palette, second pass: warmer blacks, one cool accent (projection light) instead of amber. Each colour is stored as "R G B" so Tailwind can add opacity.
- * Fonts are loaded by next/font in layout.tsx (no render-blocking @import here).
- */
 :root {
-  --booth: 12 11 9;           /* page background            #0C0B09 */
-  --screen: 22 20 17;         /* raised surfaces            #161411 */
-  --screen-raised: 31 28 24;  /* menus, inputs, hover base  #1F1C18 */
-  --gate: 43 39 35;           /* borders, dividers          #2B2723 */
-  --gate-subtle: 30 27 24;    /* faint dividers             #1E1B18 */
-  --film-grey: 149 142 132;   /* secondary text             #958E84 */
-  --paper: 241 234 220;       /* primary text               #F1EADC */
-  --projector: 127 214 198;   /* projection light: play, active, focus only  #7FD6C6 */
-  --danger: 229 89 79;        /* errors, destructive        #E5594F */
+  --background: 14 10 23;            /* #0E0A17 deep violet-tinted black */
+  --foreground: 248 248 252;         /* #F8F8FC crisp readable text */
+  --surface: 22 17 35;               /* #161123 sleek surface */
+  --surface-elevated: 32 25 51;      /* #201933 elevated menus and cards */
+  --border: 52 42 79;                /* #342A4F border divider */
+  --border-subtle: 36 29 56;         /* #241D38 subtle divider */
+  --brand-violet: 139 92 246;        /* #8B5CF6 signature violet */
+  --brand-magenta: 236 72 153;       /* #EC4899 vibrant neon magenta */
+  --cyan: 34 211 238;                /* #22D3EE bright cyan accent */
+  --muted-foreground: 168 160 188;   /* #A8A0BC readable muted text */
+  --subtle: 125 116 145;             /* #7D7491 tertiary text */
+  --danger: 239 68 68;               /* #EF4444 red */
 
-  --nav-h: 4rem;
+  --nav-h: 4.25rem;
+  --gradient-brand: linear-gradient(120deg, rgb(var(--brand-violet)), rgb(var(--brand-magenta)));
   --gradient-fade-bottom: linear-gradient(
     to top,
-    rgb(var(--booth)) 0%,
-    rgb(var(--booth) / 0.75) 35%,
+    rgb(var(--background)) 0%,
+    rgba(var(--background), 0.75) 35%,
     transparent 75%
   );
   --gradient-fade-left: linear-gradient(
     to right,
-    rgb(var(--booth) / 0.95) 0%,
-    rgb(var(--booth) / 0.5) 45%,
+    rgba(var(--background), 0.95) 0%,
+    rgba(var(--background), 0.5) 45%,
     transparent 80%
   );
 }
@@ -37,58 +37,37 @@ html {
 }
 
 body {
-  background-color: rgb(var(--booth));
-  color: rgb(var(--paper));
+  background-color: rgb(var(--background));
+  color: rgb(var(--foreground));
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-serif), Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.015em;
-  line-height: 1.05;
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 :focus-visible {
-  outline: 2px solid rgb(var(--projector));
+  outline: 2px solid rgb(var(--cyan));
   outline-offset: 2px;
 }
 
-/* Scrollbars */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  background: rgb(var(--booth));
+  background: rgb(var(--background));
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--gate));
+  background: rgb(var(--border));
   border-radius: 4px;
 }
-
-.bg-fade-bottom {
-  background-image: var(--gradient-fade-bottom);
-}
-
-.bg-fade-left {
-  background-image: var(--gradient-fade-left);
-}
-
-/* Panel: the single surface treatment for menus, cards and forms. */
-.panel {
-  background-color: rgb(var(--screen));
-  border: 1px solid rgb(var(--gate));
-  border-radius: 6px;
-}
-
-/* Outlined numerals for Top 10 rails. */
-.outline-number {
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgb(var(--film-grey));
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--brand-violet));
 }
 
 .no-scrollbar {
@@ -99,17 +78,56 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
+/* Gradients */
+.bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+.text-gradient-brand {
+  background-image: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bg-fade-bottom {
+  background-image: var(--gradient-fade-bottom);
+}
+.bg-fade-left {
+  background-image: var(--gradient-fade-left);
+}
+
+/* Glassmorphism */
+.glass {
+  background-color: rgba(22, 17, 35, 0.75);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(52, 42, 79, 0.65);
+}
+
+.gradient-border {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(rgb(var(--surface)), rgb(var(--surface))) padding-box,
+    var(--gradient-brand) border-box;
+}
+
+/* Outlined numerals for Top 10 rails */
+.outline-number {
+  color: rgb(var(--background));
+  -webkit-text-stroke: 3px rgb(var(--subtle));
+}
+
+/* Shimmer animation */
 .shimmer {
   position: relative;
   overflow: hidden;
-  background-color: rgb(var(--screen-raised));
+  background-color: rgb(var(--surface-elevated));
 }
 .shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(242, 235, 221, 0.06), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
   animation: shimmer-effect 1.6s infinite;
 }
 
@@ -119,7 +137,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* One orchestrated entrance: the hero settles in on first load. */
+/* Smooth Entrance */
 @keyframes page-in {
   from {
     opacity: 0;
@@ -130,7 +148,6 @@ h1, h2, h3, h4, h5, h6 {
     transform: none;
   }
 }
-
 .animate-page-in {
   animation: page-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }

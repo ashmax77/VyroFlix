@@ -3,18 +3,36 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogIn, LogOut, Menu, Search, Shield, User, X } from 'lucide-react';
+import { Bell, Bookmark, Film, Home, LogIn, LogOut, Menu, Search, Server, Shield, Tv, User, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/common';
 import { cn } from '@/lib/utils';
 
-type NavLink = { label: string; href: string; match: (path: string, type: string | null) => boolean };
+const NAV_LINKS = [
+  { label: 'Home', href: '/browse' },
+  { label: 'Movies', href: '/movies' },
+  { label: 'Series', href: '/series' },
+  { label: 'My List', href: '/my-list' },
+];
 
-const LINKS: NavLink[] = [
-  { label: 'Home', href: '/browse', match: (p, t) => p === '/browse' && !t },
-  { label: 'Movies', href: '/browse?type=MOVIE', match: (p, t) => p === '/browse' && t === 'MOVIE' },
-  { label: 'Series', href: '/browse?type=SERIES', match: (p, t) => p === '/browse' && t === 'SERIES' },
-  { label: 'My list', href: '/my-list', match: (p) => p === '/my-list' },
+const NOTIFICATIONS = [
+  {
+    id: 'n1',
+    title: 'Neon Tides now streaming',
+    desc: 'The complete sci-fi thriller is ready to watch.',
+    time: '2h ago',
+    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&q=80',
+    link: '/title/t-neon-tides',
+  },
+  {
+    id: 'n2',
+    title: 'Starfall Academy: New Episode',
+    desc: 'Episode 2: Solar Flare has landed.',
+    time: '1d ago',
+    image: 'https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=120&q=80',
+    link: '/title/t-starfall-academy',
+  },
 ];
 
 export default function Navbar() {
@@ -22,24 +40,19 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // Read the `type` filter from the URL on the client; avoids useSearchParams' Suspense requirement on static pages.
-  const [typeParam, setTypeParam] = useState<string | null>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthed, isAdmin, signOut } = useAuth();
 
-  useEffect(() => {
-    setTypeParam(new URLSearchParams(window.location.search).get('type'));
-    setMobileOpen(false);
-    setUserMenuOpen(false);
-  }, [pathname]);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 20);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -48,12 +61,14 @@ export default function Navbar() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setUserMenuOpen(false);
-        setMobileOpen(false);
+        setNotifOpen(false);
         setSearchOpen(false);
+        setMobileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', onClick);
@@ -75,192 +90,204 @@ export default function Navbar() {
     setSearchOpen(false);
   };
 
-  const signOutNow = async () => {
+  const handleSignOut = async () => {
     setUserMenuOpen(false);
-    setMobileOpen(false);
     await signOut();
-    router.push('/login');
+    router.push('/');
   };
-
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : '';
 
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color] duration-300',
-        scrolled || mobileOpen ? 'border-b border-border bg-background/95 backdrop-blur-sm' : 'border-b border-transparent bg-transparent'
+        'fixed inset-x-0 top-0 z-50 transition-all duration-300',
+        scrolled ? 'glass border-x-0 border-t-0 shadow-lg' : 'bg-gradient-to-b from-background/95 to-transparent'
       )}
     >
-      <nav aria-label="Main" className="mx-auto flex h-nav max-w-container items-center gap-6 px-4 sm:px-6 lg:px-10">
-        <Link href="/browse" className="font-heading text-xl font-semibold tracking-tight text-foreground" aria-label="VyroFlix home">
-          VyroFlix
+      <nav className="mx-auto flex h-16 max-w-[1800px] items-center gap-6 px-4 sm:px-8 lg:px-12" aria-label="Main Navigation">
+        {/* Brand Logo */}
+        <Link href={isAuthed ? '/browse' : '/'} className="flex items-center gap-2 group transition-transform active:scale-95" aria-label="VyroFlix home">
+          <Logo size="md" />
         </Link>
 
-        <ul className="hidden items-center gap-6 text-sm md:flex">
-          {LINKS.map((link) => {
-            const active = link.match(pathname, typeParam);
-            return (
-              <li key={link.label}>
-                <Link
-                  href={link.href}
-                  aria-current={active ? 'page' : undefined}
+        {/* Primary Desktop Navigation */}
+        {isAuthed && (
+          <ul className="hidden md:flex items-center gap-6 text-sm font-medium">
+            {NAV_LINKS.map((link) => {
+              const active = pathname === link.href || (link.href !== '/browse' && pathname.startsWith(link.href));
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      'transition-colors py-1 hover:text-foreground',
+                      active ? 'text-foreground font-semibold border-b-2 border-brand-violet' : 'text-muted-foreground'
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Actions Area */}
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {isAuthed ? (
+            <>
+              {/* Expandable Search Pill */}
+              <form onSubmit={submitSearch} className="flex items-center">
+                <div
                   className={cn(
-                    'border-b-2 pb-1 transition-colors',
-                    active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+                    'flex items-center overflow-hidden rounded-full transition-all duration-300',
+                    searchOpen
+                      ? 'w-48 sm:w-64 border border-border bg-surface/90 shadow-glow backdrop-blur'
+                      : 'w-10'
                   )}
                 >
-                  {link.label}
-                </Link>
-              </li>
-            );
-          })}
-          {isAdmin && (
-            <li>
-              <Link
-                href="/admin"
-                aria-current={pathname.startsWith('/admin') ? 'page' : undefined}
-                className={cn(
-                  'border-b-2 pb-1 transition-colors',
-                  pathname.startsWith('/admin') ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Studio
-              </Link>
-            </li>
-          )}
-        </ul>
-
-        <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          {/* Search: expands in place; submitting goes to /search */}
-          {searchOpen ? (
-            <form onSubmit={submitSearch} role="search" className="flex items-center gap-2">
-              <input
-                ref={searchInputRef}
-                type="search"
-                name="q"
-                aria-label="Search titles"
-                placeholder="Search titles"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => !searchQuery.trim() && setSearchOpen(false)}
-                className="h-9 w-40 rounded-card border border-border bg-surface px-3 text-sm text-foreground placeholder:text-subtle focus:border-primary focus:outline-none sm:w-64"
-              />
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="grid h-9 w-9 place-items-center rounded-card text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Search"
-            >
-              <Search className="h-5 w-5" aria-hidden />
-            </button>
-          )}
-
-          {isAuthed ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((o) => !o)}
-                aria-expanded={userMenuOpen}
-                aria-haspopup="menu"
-                aria-label="Account menu"
-                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface text-xs font-semibold text-foreground transition-colors hover:border-primary"
-              >
-                {initials || <User className="h-4 w-4" aria-hidden />}
-              </button>
-
-              {userMenuOpen && (
-                <div role="menu" className="panel absolute right-0 mt-2 w-60 p-2 text-sm shadow-none">
-                  <div className="border-b border-border px-3 py-2">
-                    <p className="truncate font-medium text-foreground">{user?.email}</p>
-                    <p className="text-xs text-subtle">{isAdmin ? 'Studio administrator' : 'Viewer'}</p>
-                  </div>
-                  <div className="py-1">
-                    <Link role="menuitem" href="/account" className="block rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
-                      Account
-                    </Link>
-                    <Link role="menuitem" href="/my-list" className="block rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
-                      My list
-                    </Link>
-                    {isAdmin && (
-                      <Link role="menuitem" href="/admin" className="flex items-center gap-2 rounded-card px-3 py-2 text-muted-foreground hover:bg-surface-elevated hover:text-foreground">
-                        <Shield className="h-4 w-4" aria-hidden /> Studio
-                      </Link>
-                    )}
-                  </div>
-                  <div className="border-t border-border pt-1">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={signOutNow}
-                      className="flex w-full items-center gap-2 rounded-card px-3 py-2 text-left text-danger hover:bg-danger/10"
-                    >
-                      <LogOut className="h-4 w-4" aria-hidden /> Sign out
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    aria-label="Search"
+                    onClick={() => setSearchOpen((prev) => !prev)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-foreground hover:bg-surface-elevated transition-colors"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                  {searchOpen && (
+                    <>
+                      <input
+                        ref={searchInputRef}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search titles, cast…"
+                        className="h-10 flex-1 bg-transparent pr-2 text-sm text-foreground outline-none placeholder:text-subtle"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Close search"
+                        onClick={() => setSearchOpen(false)}
+                        className="pr-3 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-          ) : (
-            <Button variant="default" size="sm" asChild className="hidden sm:inline-flex">
-              <Link href="/login">
-                <LogIn className="h-4 w-4" aria-hidden />
-                <span>Sign in</span>
-              </Link>
-            </Button>
-          )}
+              </form>
 
-          {/* Mobile menu toggle */}
-          <button
-            type="button"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-expanded={mobileOpen}
-            aria-controls="mobile-menu"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="grid h-9 w-9 place-items-center rounded-card text-muted-foreground transition-colors hover:text-foreground md:hidden"
-          >
-            {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
-          </button>
+              {/* Notifications Dropdown */}
+              <div className="relative" ref={notifRef}>
+                <button
+                  type="button"
+                  aria-label="Notifications"
+                  onClick={() => setNotifOpen((prev) => !prev)}
+                  className="relative grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-surface-elevated transition-colors"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-brand-magenta animate-pulse" />
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-border bg-surface-elevated/95 p-3 shadow-card backdrop-blur-xl animate-page-in">
+                    <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-subtle">Notifications</p>
+                    <div className="mt-2 space-y-2">
+                      {NOTIFICATIONS.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.link}
+                          onClick={() => setNotifOpen(false)}
+                          className="flex items-start gap-3 rounded-xl p-2 transition-colors hover:bg-surface"
+                        >
+                          <img src={item.image} alt="" className="h-10 w-14 rounded-lg object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-foreground">{item.title}</p>
+                            <p className="line-clamp-1 text-xs text-muted-foreground">{item.desc}</p>
+                            <p className="mt-0.5 text-[10px] text-subtle">{item.time}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Profile Avatar Dropdown */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  aria-label="Profile menu"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 rounded-full ring-2 ring-brand-violet/50 hover:ring-brand-violet transition-all p-0.5"
+                >
+                  <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-brand text-xs font-bold text-white shadow-glow">
+                    {user?.email ? user.email.slice(0, 1).toUpperCase() : 'V'}
+                  </div>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-border bg-surface-elevated/95 p-2 shadow-card backdrop-blur-xl animate-page-in">
+                    <div className="px-3 py-2 border-b border-border">
+                      <p className="text-xs font-semibold text-foreground truncate">{user?.email}</p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-cyan uppercase tracking-wider">
+                        {isAdmin ? 'Administrator' : 'Subscriber'}
+                      </span>
+                    </div>
+
+                    <div className="py-1 text-sm">
+                      <Link
+                        href="/account"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-foreground hover:bg-surface transition-colors"
+                      >
+                        <User className="h-4 w-4 text-cyan" />
+                        Account & Plan
+                      </Link>
+                      <Link
+                        href="/my-list"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-foreground hover:bg-surface transition-colors"
+                      >
+                        <Bookmark className="h-4 w-4 text-brand-magenta" />
+                        My Watchlist
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-foreground hover:bg-surface transition-colors"
+                        >
+                          <Shield className="h-4 w-4 text-brand-violet" />
+                          Admin Console
+                        </Link>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-danger hover:bg-danger/10 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/browse">Guest</Link>
+              </Button>
+              <Button variant="gradient" size="sm" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </nav>
-
-      {/* Mobile sheet: every destination reachable without hover */}
-      {mobileOpen && (
-        <div id="mobile-menu" className="border-t border-border bg-background md:hidden">
-          <ul className="flex flex-col px-4 py-3 text-base">
-            {LINKS.map((link) => (
-              <li key={link.label}>
-                <Link
-                  href={link.href}
-                  aria-current={link.match(pathname, typeParam) ? 'page' : undefined}
-                  className="block border-l-2 border-transparent px-3 py-3 text-muted-foreground aria-[current=page]:border-primary aria-[current=page]:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            {isAdmin && (
-              <li>
-                <Link href="/admin" className="block border-l-2 border-transparent px-3 py-3 text-muted-foreground">
-                  Studio
-                </Link>
-              </li>
-            )}
-            <li>
-              {isAuthed ? (
-                <button type="button" onClick={signOutNow} className="block w-full px-3 py-3 text-left text-danger">
-                  Sign out
-                </button>
-              ) : (
-                <Link href="/login" className="block px-3 py-3 text-primary">
-                  Sign in
-                </Link>
-              )}
-            </li>
-          </ul>
-        </div>
-      )}
     </header>
   );
 }
