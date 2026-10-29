@@ -26,6 +26,14 @@ export default defineConfig({
         ...(process.env.CI ? {} : { channel: 'chrome' }),
       },
     },
+    // Phones: the navigation, touch-reachable actions and overflow checks run here as well.
+    {
+      name: 'mobile',
+      use: {
+        ...devices['Pixel 5'],
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
+      },
+    },
   ],
   webServer: process.env.PLAYWRIGHT_TEST_BASE_URL
     ? undefined
