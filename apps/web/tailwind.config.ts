@@ -1,5 +1,9 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * "Projection room" identity. Colours are defined once as CSS variables in globals.css;
+ * Tailwind points at them so the palette can change in one place.
+ */
 const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -10,61 +14,52 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#0A0A0F',
-        foreground: '#F5F5F7',
+        background: 'rgb(var(--booth) / <alpha-value>)',
+        foreground: 'rgb(var(--paper) / <alpha-value>)',
         surface: {
-          DEFAULT: '#14141C',
-          elevated: '#1C1C27',
-          hover: '#242433',
+          DEFAULT: 'rgb(var(--screen) / <alpha-value>)',
+          elevated: 'rgb(var(--screen-raised) / <alpha-value>)',
+          hover: 'rgb(var(--gate) / <alpha-value>)',
         },
         border: {
-          DEFAULT: '#2A2A38',
-          subtle: '#1F1F2C',
+          DEFAULT: 'rgb(var(--gate) / <alpha-value>)',
+          subtle: 'rgb(var(--gate-subtle) / <alpha-value>)',
         },
+        // The projector amber is a function colour: play, active state, focus, progress.
         primary: {
-          DEFAULT: '#7C3AED',
-          foreground: '#FFFFFF',
-          violet: '#7C3AED',
-          magenta: '#DB2777',
-        },
-        cyan: {
-          DEFAULT: '#22D3EE',
-        },
-        accent: {
-          DEFAULT: '#1C1C27',
-          cyan: '#22D3EE',
+          DEFAULT: 'rgb(var(--projector) / <alpha-value>)',
+          foreground: 'rgb(var(--booth) / <alpha-value>)',
         },
         muted: {
-          DEFAULT: '#1C1C27',
-          foreground: '#A1A1AA',
+          DEFAULT: 'rgb(var(--screen-raised) / <alpha-value>)',
+          foreground: 'rgb(var(--film-grey) / <alpha-value>)',
         },
-        subtle: '#71717A',
-        success: '#10B981',
-        warning: '#F59E0B',
-        danger: '#EF4444',
+        subtle: 'rgb(var(--film-grey) / <alpha-value>)',
+        success: '#6FBF73',
+        warning: '#E0B452',
+        danger: 'rgb(var(--danger) / <alpha-value>)',
         destructive: {
-          DEFAULT: '#EF4444',
-          foreground: '#FFFFFF',
-        },
-        text: {
-          primary: '#F5F5F7',
-          secondary: '#A1A1AA',
-          muted: '#71717A',
+          DEFAULT: 'rgb(var(--danger) / <alpha-value>)',
+          foreground: 'rgb(var(--paper) / <alpha-value>)',
         },
       },
       fontFamily: {
-        heading: ['Outfit', 'sans-serif'],
-        display: ['Outfit', 'sans-serif'],
-        sans: ['Inter', 'sans-serif'],
+        // Titles and headings: Fraunces via next/font (see layout.tsx).
+        heading: ['var(--font-serif)', 'Georgia', 'serif'],
+        display: ['var(--font-serif)', 'Georgia', 'serif'],
+        // Interface and body text: Instrument Sans via next/font.
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
-        card: '12px',
+        // Film-gate posters are nearly square; panels are softer.
+        card: '6px',
         pill: '9999px',
       },
-      boxShadow: {
-        glow: '0 10px 30px -10px rgba(124, 58, 237, 0.5)',
-        'glow-lg': '0 18px 50px -12px rgba(219, 39, 119, 0.5)',
-        card: '0 24px 48px -16px rgba(0, 0, 0, 0.85)',
+      spacing: {
+        nav: 'var(--nav-h)',
+      },
+      maxWidth: {
+        container: '1440px',
       },
     },
   },

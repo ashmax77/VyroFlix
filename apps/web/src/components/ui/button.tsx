@@ -4,19 +4,17 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-card text-sm font-semibold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
+      // Primary is the projector amber: reserved for the main action on a screen.
       variant: {
-        default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        outline: 'border border-border bg-transparent hover:bg-surface-elevated text-foreground',
-        secondary: 'bg-surface-elevated text-foreground hover:bg-surface-elevated/70',
-        ghost: 'hover:bg-surface-elevated text-foreground',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        destructive: 'border border-danger/60 bg-transparent text-danger hover:bg-danger/10',
+        outline: 'border border-border bg-transparent text-foreground hover:bg-surface',
+        secondary: 'border border-border bg-surface text-foreground hover:bg-surface-elevated',
+        ghost: 'text-foreground hover:bg-surface',
         link: 'text-primary underline-offset-4 hover:underline',
-        gradient: 'bg-gradient-brand text-primary-foreground shadow-glow hover:brightness-110 hover:shadow-glow-lg',
-        glass: 'glass text-foreground hover:bg-surface-elevated/80',
-        light: 'bg-foreground text-background hover:bg-foreground/85',
       },
       size: {
         default: 'h-10 px-5 py-2',

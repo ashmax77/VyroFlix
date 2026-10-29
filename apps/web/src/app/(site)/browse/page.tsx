@@ -105,7 +105,7 @@ export default function BrowsePage() {
 
   if (!feed || !feed.featuredTitle) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-text-secondary">
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
         No titles available in catalog.
       </div>
     );

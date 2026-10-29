@@ -1,105 +1,72 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Projection room palette. Each colour is stored as "R G B" so Tailwind can add opacity.
+ * Fonts are loaded by next/font in layout.tsx (no render-blocking @import here).
+ */
 :root {
-  --radius: 0.75rem;
-  --background: #0A0A0F;
-  --foreground: #F5F5F7;
-  --surface: #14141C;
-  --surface-elevated: #1C1C27;
-  --card: #14141C;
-  --card-foreground: #F5F5F7;
-  --popover: #1C1C27;
-  --popover-foreground: #F5F5F7;
-  --brand-violet: #7C3AED;
-  --brand-magenta: #DB2777;
-  --cyan: #22D3EE;
-  --primary: #7C3AED;
-  --primary-foreground: #FFFFFF;
-  --secondary: #1C1C27;
-  --secondary-foreground: #F5F5F7;
-  --muted: #1C1C27;
-  --muted-foreground: #A1A1AA;
-  --subtle: #71717A;
-  --accent: #1C1C27;
-  --accent-foreground: #F5F5F7;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --border: #2A2A38;
-  --input: #2A2A38;
-  --ring: #22D3EE;
+  --booth: 14 12 10;          /* page background            #0E0C0A */
+  --screen: 26 22 19;         /* raised surfaces            #1A1613 */
+  --screen-raised: 34 29 25;  /* menus, inputs, hover base  #221D19 */
+  --gate: 42 36 32;           /* borders, dividers          #2A2420 */
+  --gate-subtle: 31 27 24;    /* faint dividers             #1F1B18 */
+  --film-grey: 140 133 124;   /* secondary text             #8C857C */
+  --paper: 242 235 221;       /* primary text               #F2EBDD */
+  --projector: 242 169 59;    /* play, active, focus only   #F2A93B */
+  --danger: 229 89 79;        /* errors, destructive        #E5594F */
 
-  --gradient-brand: linear-gradient(120deg, var(--brand-violet), var(--brand-magenta));
+  --nav-h: 4rem;
   --gradient-fade-bottom: linear-gradient(
     to top,
-    var(--background) 0%,
-    rgba(10, 10, 15, 0.75) 35%,
+    rgb(var(--booth)) 0%,
+    rgb(var(--booth) / 0.75) 35%,
     transparent 75%
   );
   --gradient-fade-left: linear-gradient(
     to right,
-    rgba(10, 10, 15, 0.95) 0%,
-    rgba(10, 10, 15, 0.5) 45%,
+    rgb(var(--booth) / 0.95) 0%,
+    rgb(var(--booth) / 0.5) 45%,
     transparent 80%
   );
-  --shadow-glow: 0 10px 30px -10px rgba(124, 58, 237, 0.5);
-  --shadow-glow-lg: 0 18px 50px -12px rgba(219, 39, 119, 0.5);
-  --shadow-card: 0 24px 48px -16px rgba(0, 0, 0, 0.85);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', sans-serif;
-  overflow-x: hidden;
+  background-color: rgb(var(--booth));
+  color: rgb(var(--paper));
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Outfit', sans-serif;
-  letter-spacing: -0.02em;
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 :focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid rgb(var(--projector));
   outline-offset: 2px;
 }
 
-/* Custom scrollbars */
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0F;
+  background: rgb(var(--booth));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2A2A38;
+  background: rgb(var(--gate));
   border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3B3B4F;
-}
-
-/* Gradient and Glass Utilities */
-.bg-gradient-brand {
-  background-image: var(--gradient-brand);
-}
-
-.text-gradient-brand {
-  background-image: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .bg-fade-bottom {
@@ -110,37 +77,11 @@ h1, h2, h3, h4, h5, h6 {
   background-image: var(--gradient-fade-left);
 }
 
-.shadow-glow {
-  box-shadow: var(--shadow-glow);
-}
-
-.shadow-glow-lg {
-  box-shadow: var(--shadow-glow-lg);
-}
-
-.shadow-card {
-  box-shadow: var(--shadow-card);
-}
-
-.glass {
-  background-color: rgba(20, 20, 28, 0.65);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid rgba(42, 42, 56, 0.7);
-}
-
-.glass-nav {
-  background-color: rgba(10, 10, 15, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(42, 42, 56, 0.4);
-}
-
-.gradient-border {
-  border: 2px solid transparent;
-  background:
-    linear-gradient(var(--surface), var(--surface)) padding-box,
-    var(--gradient-brand) border-box;
+/* Panel: the single surface treatment for menus, cards and forms. */
+.panel {
+  background-color: rgb(var(--screen));
+  border: 1px solid rgb(var(--gate));
+  border-radius: 6px;
 }
 
 .no-scrollbar {
@@ -151,22 +92,17 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
-.outline-number {
-  color: var(--background);
-  -webkit-text-stroke: 3px var(--subtle);
-}
-
 .shimmer {
   position: relative;
   overflow: hidden;
-  background-color: var(--surface-elevated);
+  background-color: rgb(var(--screen-raised));
 }
 .shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, rgba(242, 235, 221, 0.06), transparent);
   animation: shimmer-effect 1.6s infinite;
 }
 
@@ -176,6 +112,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* One orchestrated entrance: the hero settles in on first load. */
 @keyframes page-in {
   from {
     opacity: 0;
@@ -189,4 +126,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .animate-page-in {
   animation: page-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .shimmer::after {
+    animation: none;
+  }
 }

@@ -94,7 +94,7 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
       {/* Content */}
       <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28 z-10" key={activeTitle.id}>
         <div className="animate-page-in max-w-2xl">
-          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-cyan">
+          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
             <PlayCircle className="h-4 w-4" /> VyroFlix {activeTitle.type === 'SERIES' ? 'Series' : 'Film'}
           </p>
 
@@ -102,7 +102,7 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
             {activeTitle.title}
           </h1>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span className="font-semibold text-success">{matchPercent}% match</span>
             <MaturityBadge rating={activeTitle.maturityRating || 'PG-13'} />
             <span>{activeTitle.releaseYear}</span>
@@ -124,7 +124,7 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button
-              variant="light"
+              variant="default"
               size="lg"
               onClick={() => router.push(`/watch/${activeTitle.id}`)}
               className="gap-2.5 font-bold shadow-lg cursor-pointer"
@@ -133,17 +133,17 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
             </Button>
 
             <Button
-              variant="glass"
+              variant="secondary"
               size="lg"
               onClick={handleToggleList}
               disabled={isToggling}
               className="gap-2 cursor-pointer"
             >
-              {inList ? <Check className="text-cyan h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {inList ? <Check className="text-primary h-5 w-5" /> : <Plus className="h-5 w-5" />}
               <span>{inList ? 'In My List' : 'My List'}</span>
             </Button>
 
-            <Button variant="glass" size="lg" asChild className="gap-2 cursor-pointer">
+            <Button variant="secondary" size="lg" asChild className="gap-2 cursor-pointer">
               <Link href={`/title/${activeTitle.id}`}>
                 <Info className="h-5 w-5" />
                 <span>More info</span>
@@ -158,7 +158,7 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
             <button
               aria-label={paused ? 'Resume rotation' : 'Pause rotation'}
               onClick={() => setPaused((p) => !p)}
-              className="grid h-8 w-8 place-items-center rounded-full glass hover:bg-surface-elevated transition-colors text-foreground cursor-pointer"
+              className="grid h-8 w-8 place-items-center rounded-full panel hover:bg-surface-elevated transition-colors text-foreground cursor-pointer"
             >
               {paused ? <Play className="h-3.5 w-3.5 ml-0.5" /> : <Pause className="h-3.5 w-3.5" />}
             </button>
@@ -170,7 +170,7 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
                 onClick={() => setIndex(k)}
                 className={cn(
                   'h-1.5 rounded-full transition-all cursor-pointer',
-                  k === index ? 'w-8 bg-cyan' : 'w-3 bg-foreground/30 hover:bg-foreground/60'
+                  k === index ? 'w-8 bg-primary' : 'w-3 bg-foreground/30 hover:bg-foreground/60'
                 )}
               />
             ))}

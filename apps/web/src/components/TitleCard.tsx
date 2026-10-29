@@ -42,7 +42,7 @@ export default function TitleCard({ title, progress, onWatchlistChanged }: Title
 
   return (
     <div
-      className="relative flex-none w-[170px] sm:w-[210px] md:w-[240px] aspect-[2/3] rounded-card overflow-hidden bg-surface-elevated transition-all duration-300 transform hover:scale-105 hover:z-20 hover:shadow-2xl hover:shadow-purple-900/30 group"
+      className="relative flex-none w-[170px] sm:w-[210px] md:w-[240px] aspect-[2/3] rounded-card overflow-hidden bg-surface-elevated transition-all duration-300 transform hover:scale-105 hover:z-20 hover:shadow-2xl hover:shadow-primary/30 group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -60,13 +60,13 @@ export default function TitleCard({ title, progress, onWatchlistChanged }: Title
       {/* Continue Watching Progress Bar (when progress provided) */}
       {progress && (
         <div className="absolute bottom-0 left-0 right-0 z-10">
-          <div className="bg-black/60 backdrop-blur-sm px-2.5 py-1 flex items-center justify-between text-[11px] text-text-secondary">
+          <div className="bg-black/60 backdrop-blur-sm px-2.5 py-1 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{remainingMinutes}m left</span>
-            <span className="font-semibold text-accent-cyan">{progressPercent}%</span>
+            <span className="font-semibold text-primary">{progressPercent}%</span>
           </div>
           <div className="w-full h-1 bg-surface-hover">
             <div
-              className="h-full bg-accent-cyan transition-all"
+              className="h-full bg-primary transition-all"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -84,8 +84,8 @@ export default function TitleCard({ title, progress, onWatchlistChanged }: Title
         </h4>
 
         {/* Metadata chips */}
-        <div className="flex items-center space-x-2 text-[11px] text-text-secondary mb-3">
-          <span className="px-1.5 py-0.5 border border-border rounded text-[10px] text-text-primary">
+        <div className="flex items-center space-x-2 text-[11px] text-muted-foreground mb-3">
+          <span className="px-1.5 py-0.5 border border-border rounded text-[10px] text-foreground">
             {title.maturityRating}
           </span>
           <span>{title.releaseYear}</span>

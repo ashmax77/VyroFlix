@@ -420,7 +420,7 @@ export default function VideoPlayer({
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-3" />
-          <p className="text-sm font-medium text-text-secondary tracking-wide">
+          <p className="text-sm font-medium text-muted-foreground tracking-wide">
             Preparing your stream...
           </p>
         </div>
@@ -450,7 +450,7 @@ export default function VideoPlayer({
           <div className="flex items-center space-x-4">
             <button
               onClick={() => router.back()}
-              className="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white hover:scale-105 transition-transform"
+              className="w-10 h-10 rounded-full panel flex items-center justify-center text-white hover:scale-105 transition-transform"
               aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -460,7 +460,7 @@ export default function VideoPlayer({
                 {title.title}
               </h2>
               {episodeTitle && (
-                <p className="text-xs text-text-secondary drop-shadow">{episodeTitle}</p>
+                <p className="text-xs text-muted-foreground drop-shadow">{episodeTitle}</p>
               )}
             </div>
           </div>
@@ -470,7 +470,7 @@ export default function VideoPlayer({
         <div className="flex items-center justify-center space-x-8 pointer-events-auto">
           <button
             onClick={() => skipSeconds(-10)}
-            className="w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white hover:scale-110 transition-transform"
+            className="w-12 h-12 rounded-full panel flex items-center justify-center text-white hover:scale-110 transition-transform"
             aria-label="Rewind 10 seconds"
           >
             <RotateCcw className="w-5 h-5" />
@@ -478,7 +478,7 @@ export default function VideoPlayer({
 
           <button
             onClick={togglePlay}
-            className="w-16 h-16 rounded-full gradient-accent flex items-center justify-center text-white shadow-2xl shadow-purple-600/40 hover:scale-110 transition-transform"
+            className="w-16 h-16 rounded-full text-primary flex items-center justify-center text-white shadow-2xl shadow-primary/40 hover:scale-110 transition-transform"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
@@ -490,7 +490,7 @@ export default function VideoPlayer({
 
           <button
             onClick={() => skipSeconds(10)}
-            className="w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white hover:scale-110 transition-transform"
+            className="w-12 h-12 rounded-full panel flex items-center justify-center text-white hover:scale-110 transition-transform"
             aria-label="Forward 10 seconds"
           >
             <RotateCw className="w-5 h-5" />
@@ -498,7 +498,7 @@ export default function VideoPlayer({
         </div>
 
         {/* Bottom Bar: Seek, Time, Volume, Quality, Fullscreen */}
-        <div className="flex flex-col space-y-3 pointer-events-auto glass-panel p-4 rounded-card backdrop-blur-md">
+        <div className="flex flex-col space-y-3 pointer-events-auto panel p-4 rounded-card backdrop-blur-md">
           {/* Progress / Seek bar */}
           <div className="relative w-full flex items-center group">
             {/* Buffered track */}
@@ -512,17 +512,17 @@ export default function VideoPlayer({
               max={duration || 100}
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-1.5 bg-surface-elevated appearance-none cursor-pointer rounded-full accent-cyan-400 focus:outline-none"
+              className="w-full h-1.5 bg-surface-elevated appearance-none cursor-pointer rounded-full primary-400 focus:outline-none"
             />
           </div>
 
           {/* Controls Bar */}
-          <div className="flex items-center justify-between text-xs text-text-secondary">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             {/* Left: Play/Pause, Volume, Time */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={togglePlay}
-                className="text-white hover:text-purple-400 transition-colors"
+                className="text-white hover:text-primary transition-colors"
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
@@ -531,7 +531,7 @@ export default function VideoPlayer({
               <div className="flex items-center space-x-2">
                 <button
                   onClick={toggleMute}
-                  className="text-white hover:text-purple-400 transition-colors"
+                  className="text-white hover:text-primary transition-colors"
                   aria-label="Mute"
                 >
                   {isMuted || volume === 0 ? (
@@ -547,7 +547,7 @@ export default function VideoPlayer({
                   step={0.05}
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-16 h-1 bg-surface-hover accent-purple-500 rounded-full cursor-pointer"
+                  className="w-16 h-1 bg-surface-hover accent-primary rounded-full cursor-pointer"
                 />
               </div>
 
@@ -563,7 +563,7 @@ export default function VideoPlayer({
                 <div className="relative">
                   <button
                     onClick={() => setShowQualityMenu(!showQualityMenu)}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded border border-border/80 bg-surface/80 text-white hover:border-purple-400 text-xs transition-colors"
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded border border-border/80 bg-surface/80 text-white hover:border-primary text-xs transition-colors"
                   >
                     <Settings className="w-3.5 h-3.5 mr-1" />
                     <span>
@@ -574,11 +574,11 @@ export default function VideoPlayer({
                   </button>
 
                   {showQualityMenu && (
-                    <div className="absolute bottom-9 right-0 glass-panel rounded-lg py-1.5 shadow-xl min-w-[100px] z-30">
+                    <div className="absolute bottom-9 right-0 panel rounded-lg py-1.5 shadow-xl min-w-[100px] z-30">
                       <button
                         onClick={() => handleQualitySelect(-1)}
                         className={`w-full text-left px-3 py-1 text-xs hover:bg-surface-elevated transition-colors ${
-                          currentQuality === -1 ? 'text-accent-cyan font-bold' : 'text-white'
+                          currentQuality === -1 ? 'text-primary font-bold' : 'text-white'
                         }`}
                       >
                         Auto
@@ -588,7 +588,7 @@ export default function VideoPlayer({
                           key={lvl.id}
                           onClick={() => handleQualitySelect(lvl.id)}
                           className={`w-full text-left px-3 py-1 text-xs hover:bg-surface-elevated transition-colors ${
-                            currentQuality === lvl.id ? 'text-accent-cyan font-bold' : 'text-white'
+                            currentQuality === lvl.id ? 'text-primary font-bold' : 'text-white'
                           }`}
                         >
                           {lvl.name}
@@ -602,7 +602,7 @@ export default function VideoPlayer({
               {/* Fullscreen button */}
               <button
                 onClick={toggleFullscreen}
-                className="text-white hover:text-purple-400 transition-colors p-1"
+                className="text-white hover:text-primary transition-colors p-1"
                 aria-label="Toggle Fullscreen"
               >
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}

@@ -111,21 +111,21 @@ function LoginForm() {
         </div>
 
         <div className="flex items-center justify-between text-sm pt-1">
-          <label className="flex items-center gap-2 text-text-secondary cursor-pointer">
+          <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
             <Checkbox
               checked={form.watch('remember')}
               onCheckedChange={(c) => form.setValue('remember', !!c)}
             />
             <span>Remember me</span>
           </label>
-          <Link href="/login" className="text-cyan hover:underline text-xs">
+          <Link href="/login" className="text-primary hover:underline text-xs">
             Forgot password?
           </Link>
         </div>
 
         <Button
           type="submit"
-          variant="gradient"
+          variant="default"
           className="w-full mt-2 h-11 text-base font-semibold"
           disabled={isSubmitting}
         >
@@ -146,7 +146,7 @@ function LoginForm() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         New to VyroFlix?{' '}
-        <Link href="/register" className="font-semibold text-foreground hover:text-cyan transition-colors">
+        <Link href="/register" className="font-semibold text-foreground hover:text-primary transition-colors">
           Create an account
         </Link>
       </p>

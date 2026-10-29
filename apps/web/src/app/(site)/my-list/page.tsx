@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Bookmark, Play, Trash2 } from 'lucide-react';
-import { ErrorState, Spinner } from '../../components/common';
-import { ApiError, fetchWatchlist, toggleWatchlist } from '../../lib/api';
-import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../lib/hooks';
-import { WatchlistEntry } from '../../types';
+import { ErrorState, Spinner } from '@/components/common';
+import { ApiError, fetchWatchlist, toggleWatchlist } from '@/lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
+import { WatchlistEntry } from '@/types';
 
 export default function MyListPage() {
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
@@ -72,7 +72,7 @@ export default function MyListPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20 min-h-screen">
       <div className="flex items-center space-x-3 mb-8">
-        <Bookmark className="w-7 h-7 text-primary-gradient" />
+        <Bookmark className="w-7 h-7 text-primary" />
         <h1 className="font-heading font-extrabold text-3xl sm:text-4xl text-white">
           My List
         </h1>
@@ -81,15 +81,15 @@ export default function MyListPage() {
       {actionError && <ErrorState compact message={actionError} />}
 
       {watchlist.length === 0 ? (
-        <div className="glass-panel p-12 rounded-card border border-border text-center max-w-lg mx-auto mt-16">
-          <Bookmark className="w-12 h-12 text-text-muted mx-auto mb-4" />
+        <div className="panel p-12 rounded-card border border-border text-center max-w-lg mx-auto mt-16">
+          <Bookmark className="w-12 h-12 text-subtle mx-auto mb-4" />
           <h3 className="font-heading font-bold text-lg text-white mb-2">Your list is empty</h3>
-          <p className="text-text-secondary text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-6">
             Explore our catalog of movies and series to add titles you want to watch later.
           </p>
           <Link
             href="/browse"
-            className="inline-block px-6 py-3 gradient-accent text-white font-bold rounded-full text-sm shadow-lg hover:scale-105 transition-transform"
+            className="inline-block px-6 py-3 text-primary text-white font-bold rounded-full text-sm shadow-lg hover:scale-105 transition-transform"
           >
             Browse Catalog
           </Link>
@@ -103,7 +103,7 @@ export default function MyListPage() {
             return (
               <div
                 key={entry.id}
-                className="group relative aspect-[2/3] rounded-card overflow-hidden bg-surface-elevated border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-900/30"
+                className="group relative aspect-[2/3] rounded-card overflow-hidden bg-surface-elevated border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
               >
                 <img
                   src={title.posterUrl}
@@ -115,7 +115,7 @@ export default function MyListPage() {
                   <h4 className="font-heading font-bold text-sm text-white line-clamp-1 mb-1">
                     {title.title}
                   </h4>
-                  <div className="flex items-center space-x-2 text-[10px] text-text-secondary mb-3">
+                  <div className="flex items-center space-x-2 text-[10px] text-muted-foreground mb-3">
                     <span>{title.releaseYear}</span>
                     <span>•</span>
                     <span>{title.durationMinutes}m</span>

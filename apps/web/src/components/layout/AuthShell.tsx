@@ -36,16 +36,16 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
         <Link href="/" aria-label="VyroFlix home" className="hover:opacity-90 transition-opacity">
           <Logo size="md" />
         </Link>
-        <Link href="/browse" className="text-sm font-medium text-text-secondary hover:text-foreground transition-colors">
+        <Link href="/browse" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
           Browse as guest →
         </Link>
       </header>
 
       {/* Centered Glass Container */}
       <div className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
-        <div className="glass w-full max-w-md rounded-2xl p-8 shadow-card sm:p-10 border border-border/80">
+        <div className="panel w-full max-w-md rounded-2xl p-8 shadow-card sm:p-10 border border-border/80">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{title}</h1>
-          {subtitle && <p className="mt-2 text-sm text-text-secondary">{subtitle}</p>}
+          {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
           <div className="mt-8">{children}</div>
         </div>
       </div>
@@ -59,7 +59,7 @@ export function GoogleButton({ onClick, disabled }: { onClick: () => void; disab
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-full border border-border bg-surface-elevated text-sm font-semibold transition-all hover:bg-surface-elevated/70 hover:border-text-secondary/40 active:scale-[0.99] disabled:opacity-50"
+      className="flex h-11 w-full items-center justify-center gap-3 rounded-full border border-border bg-surface-elevated text-sm font-semibold transition-all hover:bg-surface-elevated/70 hover:border-text-muted-foreground/40 active:scale-[0.99] disabled:opacity-50"
     >
       <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden>
         <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -86,4 +86,4 @@ export function FieldError({ message }: { message?: string }) {
 }
 
 export const inputClass =
-  'h-11 w-full rounded-xl border border-border bg-surface/90 px-4 text-sm text-foreground placeholder:text-subtle focus:border-cyan focus:outline-none transition-colors aria-[invalid=true]:border-danger';
+  'h-11 w-full rounded-xl border border-border bg-surface/90 px-4 text-sm text-foreground placeholder:text-subtle focus:border-primary focus:outline-none transition-colors aria-[invalid=true]:border-danger';

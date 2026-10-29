@@ -4,11 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Play, Plus, Check, ArrowLeft, Clock, Calendar, Shield } from 'lucide-react';
-import { ApiError, fetchTitle, fetchSimilarTitles, toggleWatchlist, checkWatchlist } from '../../../lib/api';
-import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../../lib/hooks';
-import { Title } from '../../../types';
-import ContentRail from '../../../components/ContentRail';
-import { ErrorState, Spinner } from '../../../components/common';
+import { ApiError, fetchTitle, fetchSimilarTitles, toggleWatchlist, checkWatchlist } from '@/lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
+import { Title } from '@/types';
+import ContentRail from '@/components/ContentRail';
+import { ErrorState, Spinner } from '@/components/common';
 
 export default function TitleDetailsPage() {
   const params = useParams();
@@ -101,7 +101,7 @@ export default function TitleDetailsPage() {
         {/* Back Button */}
         <button
           onClick={() => router.back()}
-          className="absolute top-24 left-6 z-30 w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white hover:scale-105 transition-transform"
+          className="absolute top-24 left-6 z-30 w-10 h-10 rounded-full panel flex items-center justify-center text-white hover:scale-105 transition-transform"
           aria-label="Back"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -125,9 +125,9 @@ export default function TitleDetailsPage() {
             </h1>
 
             {/* Badges and metadata */}
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-text-secondary mb-6">
+            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-muted-foreground mb-6">
               <span className="flex items-center space-x-1 px-2 py-0.5 rounded border border-border text-white font-medium">
-                <Shield className="w-3.5 h-3.5 text-accent-cyan" />
+                <Shield className="w-3.5 h-3.5 text-primary" />
                 <span>{title.maturityRating}</span>
               </span>
               <span className="flex items-center space-x-1">
@@ -140,7 +140,7 @@ export default function TitleDetailsPage() {
                 <span>{title.durationMinutes} min</span>
               </span>
               <span>•</span>
-              <span className="uppercase text-[11px] font-bold tracking-wider text-purple-400">
+              <span className="uppercase text-[11px] font-bold tracking-wider text-primary">
                 {title.type}
               </span>
             </div>
@@ -158,7 +158,7 @@ export default function TitleDetailsPage() {
               <button
                 onClick={handleToggleList}
                 disabled={loadingList}
-                className="flex items-center space-x-2 px-6 py-3.5 glass-panel text-white hover:bg-surface-elevated rounded-full font-semibold text-sm transition-all border border-border"
+                className="flex items-center space-x-2 px-6 py-3.5 panel text-white hover:bg-surface-elevated rounded-full font-semibold text-sm transition-all border border-border"
               >
                 {inList ? (
                   <>
@@ -180,20 +180,20 @@ export default function TitleDetailsPage() {
             )}
 
             {/* Synopsis */}
-            <div className="glass-panel p-6 rounded-card border border-border mb-8">
+            <div className="panel p-6 rounded-card border border-border mb-8">
               <h3 className="font-heading font-bold text-base text-white mb-2">Synopsis</h3>
-              <p className="text-text-secondary text-sm leading-relaxed">{title.synopsis}</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">{title.synopsis}</p>
             </div>
 
             {/* Cast & crew (from the single-title read) */}
             {title.cast && title.cast.length > 0 && (
-              <div className="glass-panel p-6 rounded-card border border-border mb-8">
+              <div className="panel p-6 rounded-card border border-border mb-8">
                 <h3 className="font-heading font-bold text-base text-white mb-3">Cast &amp; crew</h3>
                 <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
                   {title.cast.map((member) => (
                     <li key={`${member.personId}-${member.role}`} className="flex justify-between gap-3">
                       <span className="text-white">{member.name}</span>
-                      <span className="text-text-muted text-xs">
+                      <span className="text-subtle text-xs">
                         {member.characterName ? `${member.characterName} · ` : ''}
                         {member.role.charAt(0) + member.role.slice(1).toLowerCase()}
                       </span>
@@ -205,7 +205,7 @@ export default function TitleDetailsPage() {
 
             {/* Seasons & Episodes (if series) */}
             {title.type === 'SERIES' && title.seasons && title.seasons.length > 0 && (
-              <div className="glass-panel p-6 rounded-card border border-border mb-8">
+              <div className="panel p-6 rounded-card border border-border mb-8">
                 {title.seasons.length > 1 ? (
                   <select
                     aria-label="Season"
@@ -232,17 +232,17 @@ export default function TitleDetailsPage() {
                       className="flex items-center justify-between p-3 rounded-lg bg-surface hover:bg-surface-elevated transition-colors border border-border/50 group"
                     >
                       <div className="flex items-center space-x-4">
-                        <span className="font-heading font-bold text-sm text-text-muted w-6 text-center">
+                        <span className="font-heading font-bold text-sm text-subtle w-6 text-center">
                           {ep.episodeNumber}
                         </span>
                         <div>
-                          <h4 className="font-semibold text-sm text-white group-hover:text-purple-300 transition-colors">
+                          <h4 className="font-semibold text-sm text-white group-hover:text-primary transition-colors">
                             {ep.title}
                           </h4>
-                          <p className="text-xs text-text-secondary line-clamp-1">{ep.synopsis}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{ep.synopsis}</p>
                         </div>
                       </div>
-                      <span className="text-xs text-text-muted">{ep.durationMinutes}m</span>
+                      <span className="text-xs text-subtle">{ep.durationMinutes}m</span>
                     </Link>
                   ))}
                 </div>

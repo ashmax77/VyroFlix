@@ -41,7 +41,7 @@ function calculatePasswordStrength(password: string) {
 }
 
 const STRENGTH_LABELS = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'];
-const STRENGTH_COLORS = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-cyan', 'bg-success'];
+const STRENGTH_COLORS = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-primary', 'bg-success'];
 
 function RegisterForm() {
   const router = useRouter();
@@ -192,14 +192,14 @@ function RegisterForm() {
         </div>
 
         <div className="pt-1">
-          <label className="flex items-start gap-2.5 text-sm text-text-secondary cursor-pointer">
+          <label className="flex items-start gap-2.5 text-sm text-muted-foreground cursor-pointer">
             <Checkbox
               className="mt-0.5"
               checked={!!form.watch('terms')}
               onCheckedChange={(c) => form.setValue('terms', (c === true) as true, { shouldValidate: true })}
             />
             <span>
-              I agree to the <Link href="/browse" className="text-cyan hover:underline">Terms of Use</Link> and <Link href="/browse" className="text-cyan hover:underline">Privacy Policy</Link>.
+              I agree to the <Link href="/browse" className="text-primary hover:underline">Terms of Use</Link> and <Link href="/browse" className="text-primary hover:underline">Privacy Policy</Link>.
             </span>
           </label>
           <FieldError message={errors.terms?.message} />
@@ -207,7 +207,7 @@ function RegisterForm() {
 
         <Button
           type="submit"
-          variant="gradient"
+          variant="default"
           className="w-full mt-2 h-11 text-base font-semibold"
           disabled={isSubmitting}
         >
@@ -228,7 +228,7 @@ function RegisterForm() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have a VyroFlix account?{' '}
-        <Link href="/login" className="font-semibold text-foreground hover:text-cyan transition-colors">
+        <Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">
           Sign in
         </Link>
       </p>

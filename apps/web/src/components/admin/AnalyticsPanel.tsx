@@ -60,14 +60,14 @@ export default function AnalyticsPanel() {
       </div>
 
       {playback && playback.daily.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-card p-4">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        <div className="rounded-xl border border-white/10 bg-surface p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Playback sessions, last 7 days
           </h3>
           <ul className="space-y-1 text-sm">
             {playback.daily.map((d) => (
               <li key={d.date} className="flex justify-between">
-                <span className="text-text-secondary">{d.date}</span>
+                <span className="text-muted-foreground">{d.date}</span>
                 <span className="font-semibold text-white">{d.sessions}</span>
               </li>
             ))}
@@ -76,9 +76,9 @@ export default function AnalyticsPanel() {
       )}
 
       {encoding && (
-        <div className="rounded-xl border border-white/10 bg-card p-4 text-sm">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">Processing jobs</h3>
-          <p className="text-text-secondary">
+        <div className="rounded-xl border border-white/10 bg-surface p-4 text-sm">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processing jobs</h3>
+          <p className="text-muted-foreground">
             Queued {encoding.QUEUED ?? 0} · Processing {encoding.PROCESSING ?? 0} · Ready {encoding.READY ?? 0} ·
             Failed {encoding.FAILED ?? 0}
           </p>
@@ -90,8 +90,8 @@ export default function AnalyticsPanel() {
 
 function Stat({ label, value }: { label: string; value: number | undefined }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-card p-4">
-      <p className="text-xs uppercase tracking-wider text-text-secondary">{label}</p>
+    <div className="rounded-xl border border-white/10 bg-surface p-4">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold text-white">{value ?? '—'}</p>
     </div>
   );

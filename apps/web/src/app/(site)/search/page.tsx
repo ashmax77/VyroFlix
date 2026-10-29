@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
-import TitleCard from '../../components/TitleCard';
-import { Title } from '../../types';
-import { ErrorState } from '../../components/common';
-import { ApiError, searchTitles, getSearchSuggestions, fetchGenres, type GenreOption, type SearchFilters } from '../../lib/api';
+import TitleCard from '@/components/TitleCard';
+import { Title } from '@/types';
+import { ErrorState } from '@/components/common';
+import { ApiError, searchTitles, getSearchSuggestions, fetchGenres, type GenreOption, type SearchFilters } from '@/lib/api';
 import { Search, X, Film, Tv, Sparkles, Filter, Loader2 } from 'lucide-react';
 
 function SearchContent() {
@@ -136,28 +134,27 @@ function SearchContent() {
   const popularSearches = ['Sci-Fi', 'Cyberpunk', 'Space', 'Dune', 'Kyoto'];
 
   return (
-    <div className="min-h-screen bg-background text-text-primary flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 w-full">
         {/* Header & Search Bar */}
         <div className="max-w-3xl mx-auto mb-10">
           <form onSubmit={handleSearchSubmit} className="relative">
-            <div className="relative flex items-center bg-surface-elevated/80 border border-border/80 rounded-2xl px-5 py-4 focus-within:border-accent-cyan focus-within:shadow-lg focus-within:shadow-cyan-500/10 transition-all">
-              <Search className="w-5 h-5 text-accent-cyan mr-3 flex-shrink-0" />
+            <div className="relative flex items-center bg-surface-elevated/80 border border-border/80 rounded-2xl px-5 py-4 focus-within:border-primary focus-within:shadow-lg focus-within:shadow-primary-500/10 transition-all">
+              <Search className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search movies, TV shows, genres, actors..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="bg-transparent text-base sm:text-lg text-text-primary placeholder:text-text-muted focus:outline-none w-full"
+                className="bg-transparent text-base sm:text-lg text-foreground placeholder:text-subtle focus:outline-none w-full"
                 autoFocus
               />
               {query && (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="p-1 rounded-full text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors"
+                  className="p-1 rounded-full text-subtle hover:text-foreground hover:bg-white/5 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -167,7 +164,7 @@ function SearchContent() {
             {/* Suggestions Dropdown */}
             {suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-surface-elevated/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-30">
-                <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted border-b border-border/50">
+                <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-subtle border-b border-border/50">
                   Instant Suggestions
                 </div>
                 {suggestions.map((item) => (
@@ -175,9 +172,9 @@ function SearchContent() {
                     key={item}
                     type="button"
                     onClick={() => handleSelectSuggestion(item)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 hover:text-accent-cyan flex items-center space-x-2 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 hover:text-primary flex items-center space-x-2 transition-colors"
                   >
-                    <Search className="w-3.5 h-3.5 text-text-muted" />
+                    <Search className="w-3.5 h-3.5 text-subtle" />
                     <span>{item}</span>
                   </button>
                 ))}
@@ -186,7 +183,7 @@ function SearchContent() {
           </form>
 
           {/* Genre, maturity and year filters */}
-          <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-text-secondary">
+          <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
             <label className="flex items-center gap-2">
               <span>Genre</span>
               <select
@@ -241,8 +238,8 @@ function SearchContent() {
                 onClick={() => handleTypeChange('')}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
                   selectedType === ''
-                    ? 'bg-accent-cyan text-black font-semibold shadow-md shadow-cyan-500/20'
-                    : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                    ? 'bg-primary text-black font-semibold shadow-md shadow-primary-500/20'
+                    : 'bg-surface-elevated border border-border text-muted-foreground hover:text-white'
                 }`}
               >
                 All
@@ -252,8 +249,8 @@ function SearchContent() {
                 onClick={() => handleTypeChange('MOVIE')}
                 className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
                   selectedType === 'MOVIE'
-                    ? 'bg-purple-600 text-white font-semibold shadow-md shadow-purple-500/20'
-                    : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                    ? 'bg-primary text-white font-semibold shadow-md shadow-primary/20'
+                    : 'bg-surface-elevated border border-border text-muted-foreground hover:text-white'
                 }`}
               >
                 <Film className="w-3 h-3" />
@@ -264,8 +261,8 @@ function SearchContent() {
                 onClick={() => handleTypeChange('SERIES')}
                 className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
                   selectedType === 'SERIES'
-                    ? 'bg-pink-600 text-white font-semibold shadow-md shadow-pink-500/20'
-                    : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                    ? 'bg-primary text-white font-semibold shadow-md shadow-primary/20'
+                    : 'bg-surface-elevated border border-border text-muted-foreground hover:text-white'
                 }`}
               >
                 <Tv className="w-3 h-3" />
@@ -274,14 +271,14 @@ function SearchContent() {
             </div>
 
             {/* Popular Searches */}
-            <div className="hidden sm:flex items-center space-x-2 text-xs text-text-muted">
+            <div className="hidden sm:flex items-center space-x-2 text-xs text-subtle">
               <span>Popular:</span>
               {popularSearches.map((tag) => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => handleSelectSuggestion(tag)}
-                  className="hover:text-accent-cyan transition-colors"
+                  className="hover:text-primary transition-colors"
                 >
                   #{tag}
                 </button>
@@ -292,9 +289,9 @@ function SearchContent() {
 
         {/* Results Header */}
         <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-3">
-          <div className="text-sm text-text-secondary">
+          <div className="text-sm text-muted-foreground">
             {isLoading ? (
-              <span className="flex items-center space-x-2 text-accent-cyan">
+              <span className="flex items-center space-x-2 text-primary">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Searching catalog...</span>
               </span>
@@ -331,11 +328,11 @@ function SearchContent() {
         ) : (
           /* Empty State */
           <div className="text-center py-20 bg-surface-elevated/30 rounded-2xl border border-border/50 max-w-xl mx-auto px-6">
-            <div className="w-16 h-16 rounded-2xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center mx-auto mb-4 text-purple-400">
+            <div className="w-16 h-16 rounded-2xl bg-primary/40 border border-primary/20 flex items-center justify-center mx-auto mb-4 text-primary">
               <Sparkles className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-heading font-bold text-white mb-2">No matching titles found</h3>
-            <p className="text-sm text-text-secondary mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               We couldn&apos;t find anything matching &ldquo;{query}&rdquo;. Try checking for typos or searching for a different keyword or genre.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
@@ -344,7 +341,7 @@ function SearchContent() {
                   key={suggestion}
                   type="button"
                   onClick={() => handleSelectSuggestion(suggestion)}
-                  className="px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-xs text-text-secondary hover:text-white hover:border-accent-cyan transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-xs text-muted-foreground hover:text-white hover:border-primary transition-colors"
                 >
                   {suggestion}
                 </button>
@@ -354,7 +351,6 @@ function SearchContent() {
         )}
       </main>
 
-      <Footer />
     </div>
   );
 }
@@ -362,8 +358,8 @@ function SearchContent() {
 export default function SearchPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center text-text-muted">
-        <Loader2 className="w-8 h-8 animate-spin text-accent-cyan" />
+      <div className="min-h-screen bg-background flex items-center justify-center text-subtle">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     }>
       <SearchContent />

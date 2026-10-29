@@ -61,7 +61,7 @@ export default function TitleManager({ titles, onChanged }: TitleManagerProps) {
         </p>
       )}
 
-      <form onSubmit={submitCreate} className="grid gap-3 rounded-xl border border-white/10 bg-card p-4 md:grid-cols-4">
+      <form onSubmit={submitCreate} className="grid gap-3 rounded-xl border border-white/10 bg-surface p-4 md:grid-cols-4">
         <input
           aria-label="New title name"
           placeholder="Title name"
@@ -82,14 +82,14 @@ export default function TitleManager({ titles, onChanged }: TitleManagerProps) {
         <button
           type="submit"
           disabled={busyId === 'new'}
-          className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           Create draft
         </button>
       </form>
 
-      <ul className="divide-y divide-white/10 rounded-xl border border-white/10 bg-card">
-        {titles.length === 0 && <li className="p-4 text-sm text-text-secondary">No titles yet.</li>}
+      <ul className="divide-y divide-white/10 rounded-xl border border-white/10 bg-surface">
+        {titles.length === 0 && <li className="p-4 text-sm text-muted-foreground">No titles yet.</li>}
         {titles.map((t) => {
           const published = t.publicationState === 'PUBLISHED';
           const busy = busyId === t.id;
@@ -97,7 +97,7 @@ export default function TitleManager({ titles, onChanged }: TitleManagerProps) {
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
                 <p className="font-semibold text-white">{t.title}</p>
-                <p className="text-xs text-text-secondary">
+                <p className="text-xs text-muted-foreground">
                   {t.type} · {t.publicationState}
                 </p>
               </div>

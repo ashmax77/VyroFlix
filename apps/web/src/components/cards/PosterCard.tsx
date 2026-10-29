@@ -64,7 +64,7 @@ export function PosterCard({
     <div className={cn('group/card relative', className)}>
       <Link
         href={`/title/${title.id}`}
-        className="block overflow-hidden rounded-xl bg-surface shadow-card transition-all duration-300 group-hover/card:scale-[1.05] group-hover/card:shadow-glow focus-visible:scale-[1.05]"
+        className="block overflow-hidden rounded-xl bg-surface shadow-card transition-all duration-300 group-hover/card:scale-[1.05] group-hover/card: focus-visible:scale-[1.05]"
         aria-label={title.title}
       >
         <div className="relative aspect-[2/3] w-full">
@@ -97,10 +97,10 @@ export function PosterCard({
             disabled={isToggling}
             className={cn(
               'grid h-8 w-8 place-items-center rounded-full border border-border hover:border-foreground transition-colors cursor-pointer',
-              inList && 'border-cyan bg-cyan/15 text-cyan'
+              inList && 'border-primary bg-primary/15 text-primary'
             )}
           >
-            {inList ? <Check className="h-4 w-4 text-cyan" /> : <Plus className="h-4 w-4 text-foreground" />}
+            {inList ? <Check className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-foreground" />}
           </button>
           <button
             aria-label="Like"
@@ -149,7 +149,7 @@ function highlightText(text: string, term: string) {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="rounded bg-cyan/30 px-0.5 text-foreground">{text.slice(i, i + term.length)}</mark>
+      <mark className="rounded bg-primary/30 px-0.5 text-foreground">{text.slice(i, i + term.length)}</mark>
       {text.slice(i + term.length)}
     </>
   );

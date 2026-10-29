@@ -61,7 +61,7 @@ export default function ContentRail({
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-xs sm:text-sm font-medium text-cyan opacity-0 transition-opacity group-hover/rail:opacity-100 focus-visible:opacity-100 hover:underline"
+            className="text-xs sm:text-sm font-medium text-primary opacity-0 transition-opacity group-hover/rail:opacity-100 focus-visible:opacity-100 hover:underline"
           >
             Explore all ›
           </Link>
@@ -79,7 +79,7 @@ export default function ContentRail({
             showLeftArrow ? 'opacity-0 group-hover/rail:opacity-100' : 'pointer-events-none opacity-0'
           )}
         >
-          <div className="w-9 h-9 rounded-full bg-surface-elevated/90 border border-border flex items-center justify-center text-foreground hover:scale-110 hover:border-cyan transition-transform">
+          <div className="w-9 h-9 rounded-full bg-surface-elevated/90 border border-border flex items-center justify-center text-foreground hover:scale-110 hover:border-primary transition-transform">
             <ChevronLeft className="w-5 h-5" />
           </div>
         </button>
@@ -109,14 +109,14 @@ export default function ContentRail({
               return (
                 <div key={prog.id} className="relative w-40 sm:w-48 shrink-0 snap-start group/prog">
                   <PosterCard title={displayTitle} className="w-full" />
-                  <div className="absolute inset-x-0 bottom-0 z-20 overflow-hidden rounded-b-xl bg-black/70 backdrop-blur-xs px-2.5 py-1">
+                  <div className="absolute inset-x-0 bottom-0 z-20 overflow-hidden rounded-b-xl bg-black/70 backdrop-blur-sm px-2.5 py-1">
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                       <span>{remainingMinutes}m left</span>
-                      <span className="font-semibold text-cyan">{Math.round(prog.progressPercent)}%</span>
+                      <span className="font-semibold text-primary">{Math.round(prog.progressPercent)}%</span>
                     </div>
                     <div className="h-1 w-full bg-surface-elevated rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-cyan rounded-full transition-all"
+                        className="h-full bg-primary rounded-full transition-all"
                         style={{ width: `${Math.min(100, prog.progressPercent)}%` }}
                       />
                     </div>
@@ -156,7 +156,7 @@ export default function ContentRail({
             showRightArrow ? 'opacity-0 group-hover/rail:opacity-100' : 'pointer-events-none opacity-0'
           )}
         >
-          <div className="w-9 h-9 rounded-full bg-surface-elevated/90 border border-border flex items-center justify-center text-foreground hover:scale-110 hover:border-cyan transition-transform">
+          <div className="w-9 h-9 rounded-full bg-surface-elevated/90 border border-border flex items-center justify-center text-foreground hover:scale-110 hover:border-primary transition-transform">
             <ChevronRight className="w-5 h-5" />
           </div>
         </button>

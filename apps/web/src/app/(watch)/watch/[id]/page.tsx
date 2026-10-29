@@ -3,11 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import VideoPlayer from '../../../components/VideoPlayer';
-import { ErrorState, Spinner } from '../../../components/common';
-import { ApiError, fetchTitle } from '../../../lib/api';
-import { SLOW_LOAD_MESSAGE, useSlowHint } from '../../../lib/hooks';
-import { Title } from '../../../types';
+import VideoPlayer from '@/components/VideoPlayer';
+import { ErrorState, Spinner } from '@/components/common';
+import { ApiError, fetchTitle } from '@/lib/api';
+import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
+import { Title } from '@/types';
 
 export default function WatchPage() {
   const params = useParams();
@@ -57,7 +57,7 @@ export default function WatchPage() {
 
   if (!title) {
     return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-text-secondary">
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-muted-foreground">
         <p>Title not found.</p>
         <Link href="/browse" className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
           Return to Browse
@@ -68,7 +68,7 @@ export default function WatchPage() {
 
   if (title.type === 'SERIES' && !episode) {
     return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-text-secondary">
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-muted-foreground">
         <p>No episodes are available for this series yet.</p>
         <Link href={`/title/${title.id}`} className="px-6 py-2.5 rounded-full bg-white text-black font-semibold">
           Back to details
