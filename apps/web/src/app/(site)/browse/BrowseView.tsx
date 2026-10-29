@@ -19,7 +19,6 @@ import { useAuth } from '@/lib/auth-context';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { HomeFeed, Title, ViewingProgress } from '@/types';
 
-/** Collection titles are lighter than full titles; fill the fields the card needs. */
 function asCardTitle(item: CollectionRail['titles'][number]): Title {
   return {
     id: item.id,
@@ -34,10 +33,6 @@ function asCardTitle(item: CollectionRail['titles'][number]): Title {
   };
 }
 
-/**
- * Starts from the catalog the server rendered (cached at the edge). Anything the server could not supply is
- * fetched here, and the viewer's own sections (Continue Watching, personal picks) always come from the browser.
- */
 export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
   const [feed, setFeed] = useState<HomeFeed | null>(initial.feed);
   const [trending, setTrending] = useState<Title[]>(initial.trending ?? []);
@@ -51,7 +46,6 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
 
   const loadMissing = useCallback(async () => {
     setError(null);
-    // Only fetch what the server could not provide. Requests start together.
     const feedRequest = initial.feed === null ? fetchHomeFeed() : null;
     if (initial.trending === null) fetchTrendingRail(10).then(setTrending);
     if (initial.collections === null) fetchCollections().then(setCollections).catch(() => setCollections([]));
@@ -59,9 +53,7 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
     if (isAuthed) {
       fetchContinueWatching()
         .then(setContinueWatching)
-        .catch((e: unknown) => {
-          if (!(e instanceof ApiError && e.isUnauthorized)) console.warn('Continue Watching unavailable:', e);
-        });
+        .catch(() => setContinueWatching([]));
       fetchPersonalRecommendations(10).then(setRecommended).catch(() => setRecommended([]));
     } else {
       setContinueWatching([]);
@@ -92,7 +84,7 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
         <div className="h-[min(72vh,720px)] min-h-[420px] w-full">
           <Skeleton className="h-full w-full rounded-none" />
         </div>
-        <div className="mx-auto max-w-container px-4 py-10 sm:px-6 lg:px-10">
+        <div className="mx-auto max-w-[1800px] px-4 py-10 sm:px-8 lg:px-12">
           <p className="text-sm text-muted-foreground">{slow ? SLOW_LOAD_MESSAGE : 'Loading the catalog…'}</p>
         </div>
       </div>
@@ -101,7 +93,7 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
 
   if (error && !feed) {
     return (
-      <div className="mx-auto max-w-container px-4 py-24 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-[1800px] px-4 py-24 sm:px-8 lg:px-12">
         <ErrorState message={error} onRetry={loadMissing} />
       </div>
     );
@@ -109,7 +101,7 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
 
   if (!feed?.featuredTitle) {
     return (
-      <div className="mx-auto max-w-container px-4 py-24 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-[1800px] px-4 py-24 sm:px-8 lg:px-12">
         <EmptyState icon={Film} title="Nothing to watch yet" description="Titles appear here once they are published." />
       </div>
     );
@@ -121,13 +113,19 @@ export default function BrowseView({ initial }: { initial: BrowseCatalog }) {
   ];
 
   return (
-    <div className="pb-8">
+    <div className="pb-16 md:pb-8">
       <HeroBillboard titles={featuredRotation} />
 
-      <div className="mt-2 space-y-2">
-        {continueWatching.length > 0 && <ContentRail title="Continue watching" progressItems={continueWatching} />}
-        {trending.length > 0 && <ContentRail title="Top 10 today" items={trending} isTop10 />}
-        {recommended.length > 0 && <ContentRail title="Recommended for you" items={recommended} />}
+      <div className="relative z-20 -mt-6 sm:-mt-12 lg:-mt-16 space-y-4 sm:space-y-6">
+        {continueWatching.length > 0 && (
+          <ContentRail title="Continue Watching" progressItems={continueWatching} />
+        )}
+        {trending.length > 0 && (
+          <ContentRail title="Trending Now" items={trending} isTop10 />
+        )}
+        {recommended.length > 0 && (
+          <ContentRail title="Recommended for You" items={recommended} />
+        )}
         {collections.map((collection) => (
           <ContentRail key={collection.id} title={collection.name} items={collection.titles.map(asCardTitle)} />
         ))}

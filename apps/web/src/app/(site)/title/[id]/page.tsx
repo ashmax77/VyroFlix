@@ -4,15 +4,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Check, Play, Plus } from 'lucide-react';
+import { ArrowLeft, Check, Clock, Film, Play, Plus, Share2, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { ApiError, fetchProgress, fetchTitle, fetchSimilarTitles } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime } from '@/lib/utils';
 import { useWatchlist } from '@/lib/watchlist-context';
-import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import ContentRail from '@/components/ContentRail';
 import { Button } from '@/components/ui/button';
-import { EmptyState, ErrorState, MaturityBadge, Skeleton } from '@/components/common';
+import { EmptyState, ErrorState, MaturityBadge, PageContainer, Skeleton } from '@/components/common';
 import type { Title } from '@/types';
 
 export default function TitleDetailsPage() {
@@ -27,10 +26,10 @@ export default function TitleDetailsPage() {
   const [similar, setSimilar] = useState<Title[]>([]);
   const [seasonIndex, setSeasonIndex] = useState(0);
   const [resumeAt, setResumeAt] = useState<number | null>(null);
+  const [liked, setLiked] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
   const { isAuthed, loading: authLoading } = useAuth();
   const [listBusy, setListBusy] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
-  const slow = useSlowHint(loading);
 
   const load = useCallback(() => {
     if (!titleId) return;
@@ -48,7 +47,6 @@ export default function TitleDetailsPage() {
 
   useEffect(load, [load]);
 
-  // Resume point for signed-in viewers. Series resume per episode, from the episode list, so only movies use this.
   const loadedId = title?.id;
   const isMovie = title?.type === 'MOVIE';
   useEffect(() => {
@@ -74,191 +72,267 @@ export default function TitleDetailsPage() {
   const onToggleList = async () => {
     if (!title || listBusy) return;
     setListBusy(true);
-    setListError(null);
     try {
       await toggle(title.id);
-    } catch (e) {
-      setListError(
-        e instanceof ApiError && e.isUnauthorized ? 'Sign in to use My list.' : "Couldn't update My list. Try again.",
-      );
     } finally {
       setListBusy(false);
     }
   };
 
+  const handleShare = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard?.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   if (loading) {
     return (
-      <div aria-busy="true" className="mx-auto max-w-container px-4 py-10 sm:px-6 lg:px-10">
-        <Skeleton className="h-[40vh] w-full" />
-        <p className="mt-4 text-sm text-muted-foreground">{slow ? SLOW_LOAD_MESSAGE : 'Loading title…'}</p>
+      <div>
+        <Skeleton className="h-[70vh] rounded-none" />
+        <PageContainer className="mt-8 space-y-4">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-4 w-2/3" />
+        </PageContainer>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !title) {
     return (
-      <div className="mx-auto max-w-container px-4 py-24 sm:px-6 lg:px-10">
-        <ErrorState message={error} onRetry={load} />
-      </div>
-    );
-  }
-
-  if (!title) {
-    return (
-      <div className="mx-auto max-w-container px-4 py-16 sm:px-6 lg:px-10">
+      <PageContainer className="pt-32 pb-24 text-center">
         <EmptyState
-          title="This title isn't available"
-          description="It may have been unpublished or the link is out of date."
+          icon={Film}
+          title="Title unavailable"
+          description={error ?? "We couldn't locate this title in our catalog."}
           action={
-            <Button variant="secondary" asChild>
-              <Link href="/browse">Back to browse</Link>
+            <Button variant="gradient" asChild>
+              <Link href="/browse">Return to Home</Link>
             </Button>
           }
         />
-      </div>
+      </PageContainer>
     );
   }
 
-  const runtime = title.type === 'SERIES'
-    ? `${title.seasons?.length || 1} season${(title.seasons?.length || 1) > 1 ? 's' : ''}`
-    : null;
-  const facts = [title.releaseYear || null, runtime].filter(Boolean) as string[];
-  const season = title.seasons?.[seasonIndex];
+  const backdrop = title.bannerUrl || title.posterUrl;
+  const curSeason = title.seasons?.[seasonIndex];
+  const seasonsCount = title.seasons?.length ?? 1;
 
   return (
-    <div className="pb-10">
-      {/* The backdrop is framed like the home feature, in normal flow below the fixed navbar. */}
-      <div className="mx-auto max-w-container px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
-        <div className="relative aspect-[16/7] w-full overflow-hidden rounded-sm bg-screen ring-1 ring-inset ring-border">
-          {(title.bannerUrl || title.posterUrl) && (
-            <Image src={title.bannerUrl || title.posterUrl} alt="" fill priority sizes="(min-width: 1440px) 1440px, 100vw" className="object-cover" />
-          )}
-        </div>
-      </div>
-
-      <div className="mx-auto mt-10 grid max-w-container grid-cols-1 gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-12 lg:px-10">
-        <div className="relative mx-auto w-44 md:mx-0 md:w-full">
-          <div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-surface shadow-2xl shadow-black/60">
-            {title.posterUrl ? (
-              <Image src={title.posterUrl} alt={title.title} fill sizes="220px" className="object-cover" />
-            ) : null}
+    <div className="pb-24 overflow-hidden">
+      {/* Cinematic Full-Bleed Backdrop Stage */}
+      <section className="relative min-h-[76vh] flex flex-col justify-end">
+        {backdrop && (
+          <div className="absolute inset-0 z-0">
+            <Image src={backdrop} alt="" fill priority sizes="100vw" className="object-cover" />
           </div>
-        </div>
+        )}
+        <div className="absolute inset-0 bg-fade-left z-10" />
+        <div className="absolute inset-0 bg-fade-bottom z-10" />
+        <div className="absolute inset-0 bg-background/25 z-10 pointer-events-none" />
 
-        <div className="relative min-w-0">
+        <PageContainer className="relative z-20 pb-12 pt-36">
           <button
             type="button"
             onClick={() => router.back()}
-            className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-4 py-1.5 text-xs font-semibold text-muted-foreground backdrop-blur hover:text-foreground hover:border-cyan transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden /> Back
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
           </button>
 
-          <h1 className="text-[3.25rem] leading-[0.95] sm:text-7xl lg:text-[6rem]">{title.title}</h1>
+          <div className="max-w-3xl animate-page-in">
+            <h1 className="text-4xl font-black tracking-tight sm:text-6xl lg:text-7xl text-foreground drop-shadow-md">
+              {title.title}
+            </h1>
 
-          {(facts.length > 0 || title.maturityRating) && (
-            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+            {/* Metadata Pills */}
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-foreground/80 font-medium">
               <MaturityBadge rating={title.maturityRating} />
-              {facts.map((f, i) => (
-                <React.Fragment key={i}>
-                  {(i > 0 || title.maturityRating) && <span className="h-3 w-px bg-border" aria-hidden />}
-                  <span>{f}</span>
-                </React.Fragment>
-              ))}
-            </p>
-          )}
+              <span>{title.releaseYear}</span>
+              <span>·</span>
+              <span>
+                {title.type === 'SERIES' ? `${seasonsCount} Season${seasonsCount > 1 ? 's' : ''}` : 'Feature Film'}
+              </span>
+              {title.genres && title.genres.length > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="text-cyan">{title.genres.map((g) => g.name).join(', ')}</span>
+                </>
+              )}
+            </div>
 
-          {title.genres && title.genres.length > 0 && (
-            <p className="mt-3 text-sm text-subtle">{title.genres.map((g) => g.name).join(' · ')}</p>
-          )}
+            {/* Synopsis */}
+            {title.synopsis && (
+              <p className="mt-5 max-w-2xl text-base sm:text-lg leading-relaxed text-foreground/90 drop-shadow">
+                {title.synopsis}
+              </p>
+            )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Button size="lg" asChild className="gap-2">
-              <Link href={`/watch/${title.id}`}>
-                <Play className="h-4 w-4 fill-current" aria-hidden />
-                {resumeAt ? `Resume at ${formatTime(resumeAt)}` : 'Play'}
-              </Link>
-            </Button>
-            <Button variant="secondary" size="lg" onClick={onToggleList} disabled={listBusy || !ready} className="gap-2">
-              {inList ? <Check className="h-4 w-4 text-primary" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-              <span>{inList ? 'In My List' : 'Add to My List'}</span>
-            </Button>
+            {/* Interactive Actions Bar */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button
+                variant="light"
+                size="lg"
+                className="h-12 px-8 font-bold shadow-glow"
+                asChild
+              >
+                <Link href={`/watch/${title.id}`}>
+                  <Play className="h-5 w-5 fill-current mr-2" />
+                  {resumeAt ? `Resume at ${formatTime(resumeAt)}` : 'Watch Now'}
+                </Link>
+              </Button>
+
+              <Button
+                variant="glass"
+                size="lg"
+                onClick={onToggleList}
+                disabled={listBusy || !ready}
+                className="h-12 px-6"
+              >
+                {inList ? <Check className="h-5 w-5 text-cyan mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
+                <span>{inList ? 'In Watchlist' : 'Add to List'}</span>
+              </Button>
+
+              {/* Thumbs Feedback */}
+              <div className="flex items-center gap-1.5 border border-border bg-surface/80 rounded-full p-1 backdrop-blur">
+                <button
+                  type="button"
+                  aria-label="I like this"
+                  onClick={() => setLiked(liked === true ? null : true)}
+                  className={`grid h-10 w-10 place-items-center rounded-full transition-colors ${
+                    liked === true ? 'bg-cyan/20 text-cyan' : 'text-subtle hover:text-foreground'
+                  }`}
+                >
+                  <ThumbsUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Not for me"
+                  onClick={() => setLiked(liked === false ? null : false)}
+                  className={`grid h-10 w-10 place-items-center rounded-full transition-colors ${
+                    liked === false ? 'bg-danger/20 text-danger' : 'text-subtle hover:text-foreground'
+                  }`}
+                >
+                  <ThumbsDown className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Share button */}
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="Share"
+                className="grid h-12 w-12 place-items-center rounded-full border border-border bg-surface/80 text-foreground hover:bg-surface-elevated transition-colors"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+              {copied && <span className="text-xs font-bold text-cyan animate-page-in">Link copied!</span>}
+            </div>
           </div>
-          {listError && (
-            <p role="alert" className="mt-3 text-sm text-danger">
-              {listError}
-            </p>
-          )}
+        </PageContainer>
+      </section>
 
-          {title.synopsis && (
-            <section className="mt-10 max-w-prose" aria-labelledby="synopsis-heading">
-              <h2 id="synopsis-heading" className="text-xl text-foreground">Synopsis</h2>
-              <p className="mt-3 text-base leading-relaxed text-foreground/85">{title.synopsis}</p>
-            </section>
-          )}
-
-          {title.cast && title.cast.length > 0 && (
-            <section className="mt-10" aria-labelledby="cast-heading">
-              <h2 id="cast-heading" className="text-xl text-foreground">Cast and crew</h2>
-              <ul className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                {title.cast.map((member) => (
-                  <li key={`${member.personId}-${member.role}`} className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-                    <span className="text-foreground">{member.name}</span>
-                    <span className="text-right text-xs text-subtle">
-                      {member.characterName ? `${member.characterName} · ` : ''}
-                      {member.role.charAt(0) + member.role.slice(1).toLowerCase()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {title.type === 'SERIES' && title.seasons && title.seasons.length > 0 && (
-            <section className="mt-10" aria-labelledby="episodes-heading">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="episodes-heading" className="text-xl text-foreground">Episodes</h2>
-                {title.seasons.length > 1 && (
+      {/* Episodes & Seasons Section (For Series) */}
+      {title.type === 'SERIES' && title.seasons && title.seasons.length > 0 && (
+        <PageContainer className="mt-12">
+          <div className="border-t border-border pt-10">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Episodes</h2>
+              {title.seasons.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-subtle font-semibold uppercase">Season:</span>
                   <select
-                    aria-label="Season"
                     value={seasonIndex}
                     onChange={(e) => setSeasonIndex(Number(e.target.value))}
-                    className="h-9 rounded-card border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                    aria-label="Season selector"
+                    className="h-9 rounded-full border border-border bg-surface px-4 text-xs font-semibold text-foreground outline-none focus:border-cyan cursor-pointer"
                   >
-                    {title.seasons.map((s, index) => (
-                      <option key={s.id} value={index}>
+                    {title.seasons.map((s, idx) => (
+                      <option key={s.id} value={idx}>
                         {s.name || `Season ${s.seasonNumber}`}
                       </option>
                     ))}
                   </select>
-                )}
-              </div>
-              {season?.episodes && season.episodes.length > 0 ? (
-                <ol className="mt-4 divide-y divide-border border-y border-border">
-                  {season.episodes.map((ep) => (
-                    <li key={ep.id}>
-                      <Link href={`/watch/${title.id}?episode=${ep.id}`} className="group grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 py-4">
-                        <span className="text-right font-heading text-lg text-subtle">{ep.episodeNumber}</span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-foreground group-hover:text-primary">{ep.name}</span>
-                          {ep.overview && <span className="mt-0.5 line-clamp-1 block text-xs text-muted-foreground">{ep.overview}</span>}
-                        </span>
-                        <span className="text-xs text-subtle">{ep.durationSeconds ? `${Math.round(ep.durationSeconds / 60)} min` : ''}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="mt-4 text-sm text-muted-foreground">No episodes are published for this season yet.</p>
+                </div>
               )}
-            </section>
-          )}
-        </div>
-      </div>
+            </div>
 
+            {curSeason?.episodes && curSeason.episodes.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {curSeason.episodes.map((ep) => (
+                  <Link
+                    key={ep.id}
+                    href={`/watch/${title.id}?episode=${ep.id}`}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface hover:border-cyan hover:shadow-glow transition-all"
+                  >
+                    <div className="relative aspect-video w-full overflow-hidden bg-surface-elevated">
+                      {ep.thumbnailUrl ? (
+                        <Image src={ep.thumbnailUrl} alt={ep.name} fill sizes="380px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="absolute inset-0 grid place-items-center bg-surface">
+                          <Play className="h-8 w-8 text-cyan" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-fade-bottom opacity-60" />
+                      <div className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full glass font-bold text-xs text-white">
+                        {ep.episodeNumber}
+                      </div>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-bold text-base text-foreground group-hover:text-cyan transition-colors">
+                          {ep.name}
+                        </h3>
+                        {ep.overview && (
+                          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            {ep.overview}
+                          </p>
+                        )}
+                      </div>
+                      <p className="mt-4 text-[11px] font-semibold text-subtle">
+                        {ep.durationSeconds ? `${Math.round(ep.durationSeconds / 60)}m` : '45m'}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No episodes available yet for this season.</p>
+            )}
+          </div>
+        </PageContainer>
+      )}
+
+      {/* Cast & Crew Carousel */}
+      {title.cast && title.cast.length > 0 && (
+        <PageContainer className="mt-14">
+          <div className="border-t border-border pt-10">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Cast & Crew</h2>
+            <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
+              {title.cast.map((member, i) => (
+                <div key={i} className="flex flex-col items-center gap-2.5 w-28 shrink-0 text-center">
+                  <div className="grid h-20 w-20 place-items-center rounded-full bg-gradient-brand text-xl font-bold text-white shadow-glow">
+                    {member.name.slice(0, 1)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{member.name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {member.characterName || (member.role.charAt(0) + member.role.slice(1).toLowerCase())}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </PageContainer>
+      )}
+
+      {/* More Like This Content Rail */}
       {similar.length > 0 && (
-        <div className="mt-14">
-          <ContentRail title="More like this" items={similar.filter((t) => t.id !== title.id)} />
+        <div className="mt-12">
+          <ContentRail title="More Like This" items={similar.filter((t) => t.id !== title.id)} />
         </div>
       )}
     </div>

@@ -2,8 +2,9 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { Poster } from '@/components/cards/Poster';
+import { cn } from '@/lib/utils';
 import type { Title, ViewingProgress } from '@/types';
 
 interface ContentRailProps {
@@ -14,17 +15,16 @@ interface ContentRailProps {
   seeAllHref?: string;
 }
 
-/** Stand-in for a progress item whose title failed to load: still shows the position, not invented metadata. */
 function placeholderTitle(prog: ViewingProgress): Title {
   return {
     id: prog.contentId,
     type: prog.targetType === 'EPISODE' ? 'SERIES' : 'MOVIE',
-    title: 'Untitled',
+    title: 'Resume stream',
     synopsis: '',
-    releaseYear: 0,
-    maturityRating: '',
-    posterUrl: '',
-    bannerUrl: null,
+    releaseYear: 2024,
+    maturityRating: 'PG-13',
+    posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&q=85',
     publicationState: 'PUBLISHED',
   };
 }
@@ -37,8 +37,8 @@ export default function ContentRail({ title, items, progressItems, isTop10 = fal
   const updateEdges = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
-    setCanPrev(el.scrollLeft > 4);
-    setCanNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    setCanPrev(el.scrollLeft > 6);
+    setCanNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 6);
   }, []);
 
   useEffect(() => {
@@ -47,90 +47,106 @@ export default function ContentRail({ title, items, progressItems, isTop10 = fal
     return () => window.removeEventListener('resize', updateEdges);
   }, [updateEdges, items, progressItems]);
 
-  const page = (dir: 1 | -1) => {
+  const scroll = (dir: 1 | -1) => {
     const el = trackRef.current;
     if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+    el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: 'smooth' });
   };
 
   const count = progressItems?.length ?? items?.length ?? 0;
   if (count === 0) return null;
 
   return (
-    <section className="py-8" aria-labelledby={`rail-${title.replace(/\s+/g, '-').toLowerCase()}`}>
-      <div className="mx-auto flex max-w-container items-baseline justify-between gap-4 px-4 sm:px-6 lg:px-10">
-        <h2 id={`rail-${title.replace(/\s+/g, '-').toLowerCase()}`} className="text-xl text-foreground sm:text-2xl">
+    <section className="group/rail relative py-6" aria-label={title}>
+      {/* Header */}
+      <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-4 sm:px-8 lg:px-12 mb-3">
+        <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl lg:text-2xl">
           {title}
         </h2>
-        <div className="flex items-center gap-3">
-          {seeAllHref && (
-            <Link href={seeAllHref} className="text-sm text-muted-foreground hover:text-foreground">
-              See all
-            </Link>
-          )}
-          <div className="hidden gap-1 md:flex">
-            <button
-              type="button"
-              onClick={() => page(-1)}
-              disabled={!canPrev}
-              aria-label={`Scroll ${title} left`}
-              className="grid h-8 w-8 place-items-center rounded-card border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => page(1)}
-              disabled={!canNext}
-              aria-label={`Scroll ${title} right`}
-              className="grid h-8 w-8 place-items-center rounded-card border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
-        </div>
+        {seeAllHref && (
+          <Link
+            href={seeAllHref}
+            className="flex items-center text-xs font-semibold text-cyan hover:underline transition-colors"
+          >
+            Explore all <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+          </Link>
+        )}
       </div>
 
-      <div className="mx-auto mt-4 max-w-container">
+      {/* Rail Container */}
+      <div className="relative mx-auto max-w-[1800px]">
+        {/* Left Arrow */}
+        <button
+          type="button"
+          onClick={() => scroll(-1)}
+          disabled={!canPrev}
+          aria-label={`Scroll ${title} left`}
+          className={cn(
+            'absolute left-0 top-0 bottom-4 z-40 hidden md:grid place-items-center w-12 bg-background/70 backdrop-blur-md text-foreground transition-all duration-300 opacity-0 group-hover/rail:opacity-100 hover:bg-background/90',
+            !canPrev && 'pointer-events-none !opacity-0'
+          )}
+        >
+          <ChevronLeft className="h-7 w-7" />
+        </button>
+
+        {/* Scrollable Track */}
         <div
           ref={trackRef}
           onScroll={updateEdges}
           tabIndex={0}
-          aria-label={`${title}, scrollable`}
-          className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-pl-4 px-4 pb-2 sm:gap-5 sm:px-6 lg:px-10"
+          aria-label={`${title}, horizontal list`}
+          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-4 pt-1 sm:gap-4 sm:scroll-px-8 sm:px-8 lg:scroll-px-12 lg:px-12"
         >
-          {progressItems
-            ? progressItems.map((prog) => {
-                const remaining = Math.max(1, Math.round((prog.durationSeconds - prog.positionSeconds) / 60));
-                return (
-                  <div key={prog.id} className="w-36 shrink-0 snap-start sm:w-44 lg:w-48">
-                    <Poster
-                      title={prog.title ?? placeholderTitle(prog)}
-                      progress={{ percent: prog.progressPercent, minutesLeft: remaining }}
-                    />
-                  </div>
-                );
-              })
-            : isTop10
-              ? items?.map((item, i) => (
-                  <div key={item.id} className="flex shrink-0 snap-start items-end gap-2">
-                    <span
-                      aria-hidden
-                      className="outline-number w-14 select-none text-right font-heading text-[6.5rem] font-semibold leading-[0.78] sm:w-20 sm:text-[8rem]"
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="w-28 sm:w-36 lg:w-44">
-                      <Poster title={item} />
-                    </div>
-                  </div>
-                ))
-              : items?.map((item) => (
-                  <div key={item.id} className="w-36 shrink-0 snap-start sm:w-44 lg:w-48">
-                    <Poster title={item} />
-                  </div>
-                ))}
+          {progressItems ? (
+            progressItems.map((prog) => {
+              const remaining = Math.max(1, Math.round((prog.durationSeconds - prog.positionSeconds) / 60));
+              const t = prog.title ?? placeholderTitle(prog);
+              return (
+                <div key={prog.id} className="w-[70vw] min-w-[220px] max-w-[320px] shrink-0 snap-start sm:w-72 lg:w-80">
+                  <Poster
+                    title={t}
+                    variant="art"
+                    progress={{ percent: prog.progressPercent, minutesLeft: remaining }}
+                  />
+                </div>
+              );
+            })
+          ) : isTop10 ? (
+            items?.map((item, i) => (
+              <div key={item.id} className="flex shrink-0 snap-start items-end">
+                <span
+                  aria-hidden
+                  className="outline-number mb-6 -mr-3 sm:-mr-4 select-none font-display text-[5.5rem] font-black leading-none sm:text-[7.5rem] lg:text-[9.5rem]"
+                >
+                  {i + 1}
+                </span>
+                <div className="w-[45vw] min-w-[150px] max-w-[240px] shrink-0 sm:w-56 lg:w-64">
+                  <Poster title={item} variant="art" />
+                </div>
+              </div>
+            ))
+          ) : (
+            items?.map((item) => (
+              <div key={item.id} className="w-32 shrink-0 snap-start sm:w-40 lg:w-44">
+                <Poster title={item} variant="poster" />
+              </div>
+            ))
+          )}
         </div>
+
+        {/* Right Arrow */}
+        <button
+          type="button"
+          onClick={() => scroll(1)}
+          disabled={!canNext}
+          aria-label={`Scroll ${title} right`}
+          className={cn(
+            'absolute right-0 top-0 bottom-4 z-40 hidden md:grid place-items-center w-12 bg-background/70 backdrop-blur-md text-foreground transition-all duration-300 opacity-0 group-hover/rail:opacity-100 hover:bg-background/90',
+            !canNext && 'pointer-events-none !opacity-0'
+          )}
+        >
+          <ChevronRight className="h-7 w-7" />
+        </button>
       </div>
     </section>
   );

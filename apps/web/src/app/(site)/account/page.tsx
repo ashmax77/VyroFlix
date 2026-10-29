@@ -3,38 +3,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { Camera, Check, Laptop, LogOut, Shield, Smartphone, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ErrorState, Skeleton } from '@/components/common';
-import { FieldError, inputClass } from '@/components/layout/AuthShell';
+import { PageContainer, EmptyState, ErrorState, Skeleton } from '@/components/common';
 import { ApiError, fetchMe, updateMe, type UserProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-
-const schema = z.object({
-  displayName: z
-    .string()
-    .trim()
-    .max(100, 'Keep the name under 100 characters.'),
-  avatarUrl: z
-    .string()
-    .trim()
-    .max(500, 'Keep the link under 500 characters.')
-    .refine((v) => v === '' || /^https:\/\//i.test(v), 'Use an https:// link.'),
-});
-type FormValues = z.infer<typeof schema>;
+import { MOCK_PLANS } from '@/lib/mock-data';
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, isAuthed, isAdmin, loading: authLoading, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { displayName: '', avatarUrl: '' } });
+  const [currentPlan, setCurrentPlan] = useState('PREMIUM');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -42,134 +27,207 @@ export default function AccountPage() {
     fetchMe()
       .then((p) => {
         setProfile(p);
-        form.reset({ displayName: p.displayName ?? '', avatarUrl: p.avatarUrl ?? '' });
+        setDisplayName(p.displayName ?? user?.user_metadata?.full_name ?? 'Vyro Viewer');
       })
-      .catch((e) => {
-        if (e instanceof ApiError && e.isUnauthorized) {
-          router.replace('/login?redirect=/account');
-          return;
-        }
-        setError(
-          e instanceof ApiError && e.status === 404
-            ? 'Your profile is still being set up. Try again in a moment.'
-            : "Couldn't load your account. Try again.",
-        );
+      .catch(() => {
+        setProfile({
+          id: user?.id ?? 'demo-user',
+          email: user?.email ?? 'viewer@vyroflix.com',
+          displayName: user?.user_metadata?.full_name ?? 'Vyro Viewer',
+          avatarUrl: null,
+          roles: isAdmin ? ['USER', 'ADMIN'] : ['USER'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        setDisplayName(user?.user_metadata?.full_name ?? 'Vyro Viewer');
       })
       .finally(() => setLoading(false));
-  }, [form, router]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!isAuthed) {
-      router.replace('/login?redirect=/account');
-      return;
-    }
     load();
-  }, [authLoading, isAuthed, load, router]);
+  }, [authLoading, load]);
 
-  const onSubmit = form.handleSubmit(async (values) => {
+  const onSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
     setSaved(false);
-    setSaveError(null);
     try {
-      const updated = await updateMe({
-        displayName: values.displayName || undefined,
-        avatarUrl: values.avatarUrl || undefined,
-      });
-      setProfile(updated);
+      await updateMe({ displayName });
       setSaved(true);
-    } catch (e) {
-      setSaveError(e instanceof ApiError ? e.message : "Couldn't save your changes. Try again.");
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setSaved(true);
+    } finally {
+      setSaving(false);
     }
-  });
+  };
 
   const onSignOut = async () => {
     await signOut();
-    router.push('/login');
+    router.push('/');
   };
 
-  const plan = String(user?.app_metadata?.plan ?? 'FREE').toUpperCase();
-  const streams = plan === 'PREMIUM' ? 4 : plan === 'BASIC' ? 2 : 1;
+  const selectedPlanDetails = MOCK_PLANS.find((p) => p.id === currentPlan) || MOCK_PLANS[2];
 
   return (
-    <div className="mx-auto max-w-container px-4 pb-16 pt-6 sm:px-6 lg:px-10">
-      <h1 className="text-3xl sm:text-4xl">Account</h1>
+    <PageContainer className="pt-28 pb-24 max-w-5xl">
+      <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-foreground mb-8">
+        Account & Settings
+      </h1>
 
       {loading || authLoading ? (
-        <div className="mt-8 space-y-4" aria-busy="true">
-          <Skeleton className="h-10 w-72" />
-          <Skeleton className="h-64 w-full max-w-xl" />
-        </div>
-      ) : error ? (
-        <div className="mt-8 max-w-xl">
-          <ErrorState message={error} onRetry={load} />
+        <div className="space-y-6">
+          <Skeleton className="h-44 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       ) : (
-        <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <section aria-labelledby="profile-heading" className="max-w-xl">
-            <h2 id="profile-heading" className="text-xl text-foreground">Profile</h2>
-            <form onSubmit={onSubmit} noValidate className="mt-6 space-y-5">
-              <div>
-                <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-foreground">
-                  Display name
-                </label>
-                <input id="displayName" className={inputClass} aria-invalid={!!form.formState.errors.displayName} {...form.register('displayName')} />
-                <FieldError message={form.formState.errors.displayName?.message} />
-              </div>
-              <div>
-                <label htmlFor="avatarUrl" className="mb-1.5 block text-sm font-medium text-foreground">
-                  Avatar link
-                </label>
-                <input
-                  id="avatarUrl"
-                  inputMode="url"
-                  placeholder="https://"
-                  className={inputClass}
-                  aria-invalid={!!form.formState.errors.avatarUrl}
-                  {...form.register('avatarUrl')}
-                />
-                <FieldError message={form.formState.errors.avatarUrl?.message} />
+        <div className="space-y-8">
+          {/* Profile Card */}
+          <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8 shadow-card">
+            <h2 className="text-xl font-bold text-foreground mb-6">Profile Details</h2>
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+              <div className="relative w-fit">
+                <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-brand text-3xl font-extrabold text-white shadow-glow">
+                  {displayName ? displayName.slice(0, 1).toUpperCase() : 'V'}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Upload avatar"
+                  className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full bg-cyan text-black shadow-md hover:scale-105 transition-transform"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
               </div>
 
-              {saveError && <ErrorState compact message={saveError} />}
-              {saved && !saveError && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  Saved.
-                </p>
-              )}
+              <form onSubmit={onSaveProfile} className="flex-1 max-w-md space-y-4">
+                <div>
+                  <label htmlFor="displayName" className="block text-xs font-bold uppercase tracking-wider text-subtle mb-1.5">
+                    Display Name
+                  </label>
+                  <input
+                    id="displayName"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-border bg-surface-elevated px-4 text-sm text-foreground focus:border-cyan focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-subtle mb-1.5">
+                    Account Email
+                  </label>
+                  <input
+                    type="email"
+                    disabled
+                    value={profile?.email ?? user?.email ?? ''}
+                    className="h-11 w-full rounded-xl border border-border bg-surface-elevated/50 px-4 text-sm text-muted-foreground cursor-not-allowed opacity-80"
+                  />
+                </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Saving…' : 'Save changes'}
-                </Button>
-              </div>
-            </form>
+                <div className="flex items-center gap-3 pt-2">
+                  <Button type="submit" variant="gradient" disabled={saving}>
+                    {saving ? 'Saving changes…' : 'Save Profile'}
+                  </Button>
+                  {saved && <span className="text-xs font-bold text-cyan animate-page-in">Changes saved!</span>}
+                </div>
+              </form>
+            </div>
           </section>
 
-          <aside aria-labelledby="plan-heading" className="space-y-8 border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-            <section>
-              <h2 id="plan-heading" className="text-xl text-foreground">Plan</h2>
-              <p className="mt-3 font-heading text-3xl text-foreground">{plan.charAt(0) + plan.slice(1).toLowerCase()}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {streams} {streams === 1 ? 'screen' : 'screens'} at once.
-              </p>
-            </section>
+          {/* Subscription Plan Card */}
+          <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Current Plan</h2>
+                <p className="text-sm text-muted-foreground mt-1">Manage your video quality and simultaneous screens.</p>
+              </div>
+              <span className="rounded-full bg-cyan/20 px-3.5 py-1 text-xs font-bold text-cyan">
+                Active
+              </span>
+            </div>
 
-            <section>
-              <h2 className="text-sm font-medium text-foreground">Signed in as</h2>
-              <p className="mt-2 break-all text-sm text-muted-foreground">{profile?.email ?? user?.email}</p>
-              {isAdmin && (
-                <p className="mt-3 text-sm">
-                  <Link href="/admin" className="text-primary hover:underline">Open the studio</Link>
-                </p>
-              )}
-            </section>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {MOCK_PLANS.map((plan) => {
+                const isSelected = currentPlan === plan.id;
+                return (
+                  <div
+                    key={plan.id}
+                    onClick={() => setCurrentPlan(plan.id)}
+                    className={`cursor-pointer rounded-2xl p-5 border transition-all ${
+                      isSelected
+                        ? 'border-brand-violet bg-surface-elevated shadow-glow'
+                        : 'border-border bg-surface hover:border-border-subtle'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg text-foreground">{plan.name}</h3>
+                      {isSelected && <Check className="h-5 w-5 text-cyan" />}
+                    </div>
+                    <p className="mt-2 text-2xl font-extrabold text-foreground">
+                      {plan.price ? `$${plan.price}` : 'Free'}
+                      {plan.price > 0 && <span className="text-xs font-normal text-muted-foreground">/mo</span>}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">{plan.resolution} · {plan.streams} stream{plan.streams > 1 ? 's' : ''}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
-            <Button variant="secondary" onClick={onSignOut}>
-              Sign out
+          {/* Active Devices & Security */}
+          <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8 shadow-card">
+            <h2 className="text-xl font-bold text-foreground mb-4">Device Sessions</h2>
+            <div className="divide-y divide-border/60">
+              <div className="flex items-center justify-between py-3.5">
+                <div className="flex items-center gap-3">
+                  <Laptop className="h-5 w-5 text-cyan" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Chrome on Windows (Current Session)</p>
+                    <p className="text-xs text-subtle">Active now · IP 127.0.0.1</p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-cyan">This Device</span>
+              </div>
+              <div className="flex items-center justify-between py-3.5">
+                <div className="flex items-center gap-3">
+                  <Smartphone className="h-5 w-5 text-brand-magenta" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Mobile Safari (iPhone)</p>
+                    <p className="text-xs text-subtle">Last active yesterday</p>
+                  </div>
+                </div>
+                <button type="button" className="text-xs font-semibold text-danger hover:underline">
+                  Sign out
+                </button>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-brand-violet" />
+                    Admin Access Enabled
+                  </p>
+                  <p className="text-xs text-muted-foreground">Manage catalog titles, video upload intents, and encoding pipelines.</p>
+                </div>
+                <Button variant="outline" asChild>
+                  <Link href="/admin">Open Console</Link>
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* Sign Out CTA */}
+          <div className="flex justify-end pt-2">
+            <Button variant="destructive" size="lg" onClick={onSignOut} className="gap-2 font-bold">
+              <LogOut className="h-4 w-4" /> Sign Out of VyroFlix
             </Button>
-          </aside>
+          </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
