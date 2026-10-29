@@ -1,7 +1,7 @@
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 import type { CollectionRail } from '@/lib/api';
 import type { HomeFeed, Title } from '@/types';
-import { railToTitles, type RecommendationItem } from '@/lib/mappers';
+import { railToTitles, toHomeFeed, type HomeFeedResponse, type RecommendationItem } from '@/lib/mappers';
 
 /**
  * Public catalog reads for server components. Responses are cached by Next for REVALIDATE_SECONDS, so
@@ -44,7 +44,7 @@ export async function getBrowseCatalog(): Promise<BrowseCatalog> {
     return { feed: null, trending: null, collections: null };
   }
   const [feed, trending, collections] = await Promise.all([
-    getPublic<HomeFeed>('/catalog/home').catch(() => null),
+    getPublic<HomeFeedResponse>('/catalog/home').then(toHomeFeed).catch(() => null),
     getPublic<{ items?: RecommendationItem[] }>('/recommendations/trending?limit=10')
       .then(railToTitles)
       .catch(() => null),

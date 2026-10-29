@@ -1,4 +1,15 @@
-import type { Title } from '@/types';
+import type { CatalogRail, HomeFeed, Title } from '@/types';
+
+/** The home feed as Content-Service sends it: the featured title is `featured`. */
+export interface HomeFeedResponse {
+  featured: Title | null;
+  rails: CatalogRail[];
+}
+
+/** Maps the home feed to the web shape (`featuredTitle`). Shared by the browser and the server-side catalog read. */
+export function toHomeFeed(data: HomeFeedResponse): HomeFeed {
+  return { featuredTitle: data.featured ?? null, rails: data.rails ?? [] };
+}
 
 /** One item in a Recommendation-Service rail. The service knows less about a title than the catalog does. */
 export interface RecommendationItem {

@@ -15,7 +15,7 @@ import {
   SearchResultPage,
 } from '../types';
 import { createClient } from './supabase/client';
-import { railToTitles, type RecommendationItem } from './mappers';
+import { railToTitles, toHomeFeed, type HomeFeedResponse, type RecommendationItem } from './mappers';
 
 const API_BASE = '/api/v1';
 
@@ -137,7 +137,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 // ---------------------------------------------------------------------------
 
 export function fetchHomeFeed(): Promise<HomeFeed> {
-  return request<HomeFeed>('/catalog/home');
+  return request<HomeFeedResponse>('/catalog/home').then(toHomeFeed);
 }
 
 /** Returns null when the title does not exist (or is not published). */
