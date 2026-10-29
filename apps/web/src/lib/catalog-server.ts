@@ -1,3 +1,4 @@
+import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 import type { CollectionRail } from '@/lib/api';
 import type { HomeFeed, Title } from '@/types';
 import { railToTitles, type RecommendationItem } from '@/lib/mappers';
@@ -31,8 +32,17 @@ async function getPublic<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Never throws: a failed part comes back as null and the page fetches it in the browser. */
+/**
+ * Never throws: a failed part comes back as null and the page fetches it in the browser.
+ *
+ * Skipped while `next build` prerenders pages. The backend may be asleep then, and waiting on it stalls the
+ * build (Vercel fails the deploy after three 60-second timeouts). The page is revalidated after
+ * REVALIDATE_SECONDS, so the first real request fills the cache.
+ */
 export async function getBrowseCatalog(): Promise<BrowseCatalog> {
+  if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) {
+    return { feed: null, trending: null, collections: null };
+  }
   const [feed, trending, collections] = await Promise.all([
     getPublic<HomeFeed>('/catalog/home').catch(() => null),
     getPublic<{ items?: RecommendationItem[] }>('/recommendations/trending?limit=10')
