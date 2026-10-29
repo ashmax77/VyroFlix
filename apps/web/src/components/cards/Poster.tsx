@@ -154,7 +154,7 @@ function highlightText(text: string, term: string) {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="rounded-[2px] bg-primary/30 text-foreground">{text.slice(i, i + term.length)}</mark>
+      <mark className="bg-transparent font-medium text-primary">{text.slice(i, i + term.length)}</mark>
       {text.slice(i + term.length)}
     </>
   );

@@ -130,7 +130,7 @@ function SearchContent() {
 
   return (
     <div className="mx-auto max-w-container px-4 pb-16 sm:px-6 lg:px-10">
-      <header className="mx-auto max-w-2xl pt-6">
+      <header className="max-w-2xl pt-6">
         <h1 className="text-3xl sm:text-4xl">Search</h1>
 
         <form onSubmit={handleSubmit} role="search" className="relative mt-6">

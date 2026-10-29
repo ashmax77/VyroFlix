@@ -127,17 +127,18 @@ export default function TitleDetailsPage() {
 
   return (
     <div className="pb-10">
-      {/* Backdrop sits in normal flow below the fixed navbar, so nothing is hidden under it. */}
-      <div className="relative h-[min(52vh,560px)] min-h-[300px] w-full overflow-hidden bg-background">
-        {(title.bannerUrl || title.posterUrl) && (
-          <Image src={title.bannerUrl || title.posterUrl} alt="" fill priority sizes="100vw" className="object-cover object-[center_25%]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" aria-hidden />
+      {/* The backdrop is framed like the home feature, in normal flow below the fixed navbar. */}
+      <div className="mx-auto max-w-container px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+        <div className="relative aspect-[16/7] w-full overflow-hidden rounded-sm bg-screen ring-1 ring-inset ring-border">
+          {(title.bannerUrl || title.posterUrl) && (
+            <Image src={title.bannerUrl || title.posterUrl} alt="" fill priority sizes="(min-width: 1440px) 1440px, 100vw" className="object-cover" />
+          )}
+        </div>
       </div>
 
-      <div className="mx-auto -mt-40 grid max-w-container grid-cols-1 gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] lg:px-10">
-        <div className="relative hidden md:block">
-          <div className="relative aspect-[2/3] overflow-hidden rounded-[2px] bg-surface ring-1 ring-inset ring-white/10">
+      <div className="mx-auto mt-10 grid max-w-container grid-cols-1 gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-12 lg:px-10">
+        <div className="relative mx-auto w-44 md:mx-0 md:w-full">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-surface shadow-2xl shadow-black/60">
             {title.posterUrl ? (
               <Image src={title.posterUrl} alt={title.title} fill sizes="220px" className="object-cover" />
             ) : null}
@@ -153,14 +154,14 @@ export default function TitleDetailsPage() {
             <ArrowLeft className="h-4 w-4" aria-hidden /> Back
           </button>
 
-          <h1 className="font-heading text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">{title.title}</h1>
+          <h1 className="text-[3.25rem] leading-[0.95] sm:text-7xl lg:text-[6rem]">{title.title}</h1>
 
           {(facts.length > 0 || title.maturityRating) && (
-            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
               <MaturityBadge rating={title.maturityRating} />
               {facts.map((f, i) => (
                 <React.Fragment key={i}>
-                  {(i > 0 || title.maturityRating) && <span aria-hidden>·</span>}
+                  {(i > 0 || title.maturityRating) && <span className="h-3 w-px bg-border" aria-hidden />}
                   <span>{f}</span>
                 </React.Fragment>
               ))}
