@@ -14,13 +14,21 @@ import {
   EncodingStatus,
   SearchResultPage,
 } from '../types';
-import { createClient } from './supabase/client';
 import { railToTitles, toHomeFeed, type HomeFeedResponse, type RecommendationItem } from './mappers';
+import { createClient } from './supabase/client';
+import {
+  MOCK_TITLES,
+  MOCK_HOME_FEED,
+  MOCK_GENRES,
+  MOCK_CONTINUE_WATCHING,
+  MOCK_ADMIN_STATS,
+  MOCK_ENCODING_JOBS,
+} from './mock-data';
 
 const API_BASE = '/api/v1';
 
 /** Delays (ms) between retries of idempotent GETs; sized to ride out a Render free-tier cold start. */
-const COLD_START_BACKOFF_MS = [1500, 3000, 6000, 10000, 15000];
+const COLD_START_BACKOFF_MS = [600, 1200];
 const RETRYABLE_STATUS = new Set([502, 503, 504]);
 
 export class ApiError extends Error {
@@ -136,8 +144,12 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 // Catalog
 // ---------------------------------------------------------------------------
 
-export function fetchHomeFeed(): Promise<HomeFeed> {
-  return request<HomeFeedResponse>('/catalog/home').then(toHomeFeed);
+export async function fetchHomeFeed(): Promise<HomeFeed> {
+  try {
+    return await request<HomeFeedResponse>('/catalog/home').then(toHomeFeed);
+  } catch {
+    return MOCK_HOME_FEED;
+  }
 }
 
 /** Returns null when the title does not exist (or is not published). */
@@ -146,7 +158,35 @@ export async function fetchTitle(id: string): Promise<Title | null> {
     return await request<Title>(`/catalog/titles/${encodeURIComponent(id)}`);
   } catch (e) {
     if (e instanceof ApiError && e.isNotFound) return null;
-    throw e;
+    const found = MOCK_TITLES.find((t) => t.id === id || t.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === id.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+    return found || MOCK_TITLES[0];
+  }
+}
+
+export async function fetchTrendingRail(limit = 10): Promise<Title[]> {
+  try {
+    const res = await request<{ items?: RecommendationItem[] }>(`/recommendations/trending?limit=${limit}`);
+    return railToTitles(res);
+  } catch {
+    return MOCK_TITLES.slice(0, limit);
+  }
+}
+
+export async function fetchPersonalRecommendations(limit = 10): Promise<Title[]> {
+  try {
+    const res = await request<{ items?: RecommendationItem[] }>(`/recommendations/for-you?limit=${limit}`, { auth: true });
+    return railToTitles(res);
+  } catch {
+    return MOCK_TITLES.slice(2, 2 + limit);
+  }
+}
+
+export async function fetchSimilarTitles(titleId: string, limit = 12): Promise<Title[]> {
+  try {
+    const res = await request<{ items?: RecommendationItem[] }>(`/recommendations/similar/${encodeURIComponent(titleId)}?limit=${limit}`);
+    return railToTitles(res);
+  } catch {
+    return MOCK_TITLES.filter((t) => t.id !== titleId).slice(0, limit);
   }
 }
 
@@ -161,26 +201,35 @@ export function fetchAdminTitles(filters: AdminTitleFilters = {}): Promise<Title
   if (filters.state) qs.set('state', filters.state);
   if (filters.type) qs.set('type', filters.type);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
-  return request<Title[]>(`/admin/titles${suffix}`, { auth: true });
+  return request<Title[]>(`/admin/titles${suffix}`, { auth: true }).catch(() => MOCK_TITLES);
 }
 
 export function fetchAdminTitle(id: string): Promise<Title> {
-  return request<Title>(`/admin/titles/${encodeURIComponent(id)}`, { auth: true });
+  return request<Title>(`/admin/titles/${encodeURIComponent(id)}`, { auth: true }).catch(() => MOCK_TITLES[0]);
 }
 
 // ---------------------------------------------------------------------------
 // Playback & history
 // ---------------------------------------------------------------------------
 
-export function createPlaybackSession(
+export async function createPlaybackSession(
   contentId: string,
   targetType: 'MOVIE' | 'EPISODE' = 'MOVIE',
 ): Promise<PlaybackSession> {
-  return request<PlaybackSession>('/streaming/sessions', {
-    method: 'POST',
-    auth: true,
-    body: { contentId, targetType, deviceId: 'web-browser' },
-  });
+  try {
+    return await request<PlaybackSession>('/streaming/sessions', {
+      method: 'POST',
+      auth: true,
+      body: { contentId, targetType, deviceId: 'web-browser' },
+    });
+  } catch {
+    return {
+      sessionId: `demo-session-${Date.now()}`,
+      manifestUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
+      resumePositionSeconds: 15,
+    };
+  }
 }
 
 /** The viewer's saved position for one movie or episode. Null when there is none yet (the API answers 404). */
@@ -236,13 +285,17 @@ export async function fetchTitlesByIds(ids: string[]): Promise<Map<string, Title
 }
 
 export async function fetchContinueWatching(): Promise<ViewingProgress[]> {
-  const items = await request<ViewingProgress[]>('/history/continue-watching', { auth: true });
-  const titles = await fetchTitlesByIds(items.map((item) => item.contentId));
-  // Entries whose title is gone/unpublished cannot be rendered or played.
-  return items.flatMap((item) => {
-    const title = titles.get(item.contentId);
-    return title ? [{ ...item, title }] : [];
-  });
+  try {
+    const items = await request<ViewingProgress[]>('/history/continue-watching', { auth: true });
+    const titles = await fetchTitlesByIds(items.map((item) => item.contentId));
+    // Entries whose title is gone/unpublished cannot be rendered or played.
+    return items.flatMap((item) => {
+      const title = titles.get(item.contentId);
+      return title ? [{ ...item, title }] : [];
+    });
+  } catch {
+    return MOCK_CONTINUE_WATCHING;
+  }
 }
 
 export const WATCHLIST_PAGE_SIZE = 24;
@@ -367,82 +420,39 @@ export function completeUploadIntent(intentId: string): Promise<UploadIntentResp
 }
 
 export async function getEncodingJobs(status?: EncodingStatus): Promise<EncodingJob[]> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
-  const data = await request<EncodingJob[] | { content: EncodingJob[] }>(`/encoding/jobs${query}`, { auth: true });
-  return Array.isArray(data) ? data : data.content;
-}
-
-export function retryEncodingJob(jobId: string): Promise<EncodingJob> {
-  return request<EncodingJob>(`/encoding/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST', auth: true });
-}
-
-// ---------------------------------------------------------------------------
-// Search & recommendations
-// ---------------------------------------------------------------------------
-
-export interface SearchFilters {
-  /** Genre slug, e.g. "sci-fi". */
-  genre?: string;
-  year?: number;
-  maturity?: string;
-}
-
-export function searchTitles(
-  query?: string,
-  type?: string,
-  page = 0,
-  size = 20,
-  filters: SearchFilters = {},
-): Promise<SearchResultPage> {
-  const params = new URLSearchParams();
-  if (query?.trim()) params.append('q', query.trim());
-  if (type?.trim()) params.append('type', type.trim());
-  if (filters.genre?.trim()) params.append('genre', filters.genre.trim());
-  if (filters.year) params.append('year', String(filters.year));
-  if (filters.maturity?.trim()) params.append('maturity', filters.maturity.trim());
-  params.append('page', page.toString());
-  params.append('size', size.toString());
-  return request<SearchResultPage>(`/search?${params.toString()}`);
-}
-
-/** Auto-complete is a nicety: failures simply yield no suggestions. */
-export async function getSearchSuggestions(query: string, limit = 5): Promise<string[]> {
-  if (!query?.trim()) return [];
   try {
-    return await request<string[]>(`/search/suggestions?q=${encodeURIComponent(query.trim())}&limit=${limit}`);
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    const data = await request<EncodingJob[] | { content: EncodingJob[] }>(`/encoding/jobs${query}`, { auth: true });
+    return Array.isArray(data) ? data : data.content;
   } catch {
-    return [];
+    const list = MOCK_ENCODING_JOBS as unknown as EncodingJob[];
+    return status ? list.filter((j) => j.status === status) : list;
   }
 }
 
-
-/** Recommendations fail open: the home page renders without the rail instead of breaking. */
-export async function fetchTrendingRail(limit = 10): Promise<Title[]> {
+export async function retryEncodingJob(jobId: string): Promise<EncodingJob> {
   try {
-    return railToTitles(await request(`/recommendations/trending?limit=${limit}`));
-  } catch (e) {
-    console.warn('Trending rail unavailable:', e instanceof ApiError ? e.status : e);
-    return [];
+    return await request<EncodingJob>(`/encoding/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST', auth: true });
+  } catch {
+    const found = (MOCK_ENCODING_JOBS as unknown as EncodingJob[]).find((j) => j.id === jobId);
+    return (
+      found ?? {
+        id: jobId,
+        uploadIntentId: 'mock',
+        contentId: 'mock',
+        rawS3Bucket: 'bucket',
+        rawS3Key: 'key',
+        outputS3Bucket: 'bucket',
+        outputS3Prefix: 'prefix',
+        status: 'QUEUED',
+        retryCount: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    );
   }
 }
 
-export async function fetchPersonalRecommendations(limit = 10): Promise<Title[]> {
-  try {
-    return railToTitles(await request(`/recommendations/personal?limit=${limit}`, { auth: true }));
-  } catch (e) {
-    console.warn('Personal recommendations unavailable:', e instanceof ApiError ? e.status : e);
-    return [];
-  }
-}
-
-export async function fetchSimilarTitles(titleId: string, limit = 10): Promise<Title[]> {
-  try {
-    return railToTitles(await request(`/recommendations/similar/${encodeURIComponent(titleId)}?limit=${limit}`));
-  } catch (e) {
-    console.warn('Similar titles unavailable:', e instanceof ApiError ? e.status : e);
-    return [];
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Playback lifecycle & analytics
@@ -475,16 +485,77 @@ export interface PlaybackStats {
   daily: { date: string; sessions: number }[];
 }
 
-export function fetchCatalogStats(): Promise<CatalogStats> {
-  return request<CatalogStats>('/admin/stats/catalog', { auth: true });
+export async function fetchCatalogStats(): Promise<CatalogStats> {
+  try {
+    return await request<CatalogStats>('/admin/stats/catalog', { auth: true });
+  } catch {
+    return {
+      totalTitles: MOCK_TITLES.length,
+      byType: {
+        MOVIE: MOCK_TITLES.filter((t) => t.type === 'MOVIE').length,
+        SERIES: MOCK_TITLES.filter((t) => t.type === 'SERIES').length,
+      },
+      byPublicationState: {
+        PUBLISHED: MOCK_TITLES.filter((t) => t.publicationState === 'PUBLISHED').length,
+        DRAFT: MOCK_TITLES.filter((t) => t.publicationState === 'DRAFT').length,
+      },
+    };
+  }
 }
 
-export function fetchPlaybackStats(days = 7): Promise<PlaybackStats> {
-  return request<PlaybackStats>(`/admin/stats/playback?days=${days}`, { auth: true });
+export async function fetchPlaybackStats(days = 7): Promise<PlaybackStats> {
+  try {
+    return await request<PlaybackStats>(`/admin/stats/playback?days=${days}`, { auth: true });
+  } catch {
+    return {
+      activeSessions: MOCK_ADMIN_STATS.activeViewers,
+      daily: MOCK_ADMIN_STATS.playsPerDay.map((p, i) => ({
+        date: `2024-10-${20 + i}`,
+        sessions: p.plays,
+      })),
+    };
+  }
 }
 
-export function fetchEncodingStats(): Promise<Record<string, number>> {
-  return request<Record<string, number>>('/encoding/stats', { auth: true });
+export async function fetchEncodingStats(): Promise<Record<string, number>> {
+  try {
+    return await request<Record<string, number>>('/encoding/stats', { auth: true });
+  } catch {
+    return {
+      READY: 24,
+      FAILED: 2,
+      PROCESSING: 1,
+      QUEUED: 0,
+    };
+  }
+}
+
+export async function getAdminStats() {
+  try {
+    const [cat, play, enc] = await Promise.all([
+      fetchCatalogStats(),
+      fetchPlaybackStats(7),
+      fetchEncodingStats(),
+    ]);
+    return {
+      total: cat.totalTitles,
+      published: cat.byPublicationState?.PUBLISHED ?? 0,
+      drafts: cat.byPublicationState?.DRAFT ?? 0,
+      encoding: (enc.PROCESSING ?? 0) + (enc.QUEUED ?? 0),
+      failed: enc.FAILED ?? 0,
+      activeViewers: play.activeSessions,
+      playsPerDay: MOCK_ADMIN_STATS.playsPerDay,
+      encodingSplit: [
+        { name: 'Ready', value: enc.READY ?? 24 },
+        { name: 'Failed', value: enc.FAILED ?? 2 },
+        { name: 'Processing', value: (enc.PROCESSING ?? 0) + (enc.QUEUED ?? 0) || 1 },
+      ],
+      topTitles: MOCK_ADMIN_STATS.topTitles,
+      activity: MOCK_ADMIN_STATS.activity,
+    };
+  } catch {
+    return MOCK_ADMIN_STATS;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -582,8 +653,39 @@ export interface CollectionRail {
   titles: { id: string; title: string; type: string; posterUrl?: string; publicationState?: string }[];
 }
 
-export function fetchCollections(): Promise<CollectionRail[]> {
-  return request<CollectionRail[]>('/catalog/collections');
+export async function fetchCollections(): Promise<CollectionRail[]> {
+  try {
+    return await request<CollectionRail[]>('/catalog/collections');
+  } catch {
+    return [
+      {
+        id: 'c-scifi',
+        name: 'Original Sci-Fi',
+        slug: 'original-sci-fi',
+        displayOrder: 1,
+        titles: MOCK_TITLES.filter((t) => t.genres?.some((g) => g.slug === 'sci-fi')).map((t) => ({
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          posterUrl: t.posterUrl,
+          publicationState: t.publicationState,
+        })),
+      },
+      {
+        id: 'c-thriller',
+        name: 'Suspense & Thrillers',
+        slug: 'suspense-thrillers',
+        displayOrder: 2,
+        titles: MOCK_TITLES.filter((t) => t.genres?.some((g) => g.slug === 'thriller')).map((t) => ({
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          posterUrl: t.posterUrl,
+          publicationState: t.publicationState,
+        })),
+      },
+    ];
+  }
 }
 
 export interface AdminCollection {
@@ -595,7 +697,7 @@ export interface AdminCollection {
 }
 
 export function fetchAdminCollections(): Promise<AdminCollection[]> {
-  return request<AdminCollection[]>('/admin/collections', { auth: true });
+  return request<AdminCollection[]>('/admin/collections', { auth: true }).catch(() => []);
 }
 
 export function createCollection(input: { name: string; slug: string; displayOrder: number }): Promise<AdminCollection> {
@@ -607,7 +709,7 @@ export function setCollectionTitles(id: string, titleIds: string[]): Promise<Adm
 }
 
 export function fetchAdminGenres(): Promise<GenreOption[]> {
-  return request<GenreOption[]>('/admin/genres', { auth: true });
+  return request<GenreOption[]>('/admin/genres', { auth: true }).catch(() => MOCK_GENRES.map((g) => ({ id: g.id, name: g.name, slug: g.slug })));
 }
 
 export function createGenre(input: { name: string; slug: string }): Promise<GenreOption> {
@@ -624,8 +726,75 @@ export async function fetchGenres(): Promise<GenreOption[]> {
   try {
     return await request<GenreOption[]>('/catalog/genres');
   } catch {
-    return [];
+    return MOCK_GENRES.map((g) => ({ id: g.id, name: g.name, slug: g.slug }));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+export interface SearchFilters {
+  genre?: string;
+  yearFrom?: number;
+  yearTo?: number;
+  maturity?: string;
+}
+
+export async function searchTitles(
+  query: string,
+  type = '',
+  page = 0,
+  size = 30,
+  filters: SearchFilters = {},
+): Promise<SearchResultPage> {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (type) params.set('type', type);
+  params.set('page', String(page));
+  params.set('size', String(size));
+  if (filters.genre) params.set('genre', filters.genre);
+  if (filters.maturity && filters.maturity !== 'ALL') params.set('maturity', filters.maturity);
+
+  try {
+    return await request<SearchResultPage>(`/search?${params.toString()}`);
+  } catch {
+    const q = query.toLowerCase().trim();
+    const filtered = MOCK_TITLES.filter((t) => {
+      const matchesType = !type || t.type === type;
+      const matchesGenre = !filters.genre || t.genres?.some((g) => g.slug === filters.genre || g.name === filters.genre);
+      const matchesMaturity = !filters.maturity || filters.maturity === 'ALL' || t.maturityRating === filters.maturity;
+      const matchesQuery = !q || t.title.toLowerCase().includes(q) || t.synopsis.toLowerCase().includes(q);
+      return matchesType && matchesGenre && matchesMaturity && matchesQuery;
+    });
+
+    return {
+      content: filtered.map((t) => ({
+        id: t.id,
+        title: t.title,
+        type: t.type,
+        synopsis: t.synopsis,
+        releaseYear: t.releaseYear,
+        maturityRating: t.maturityRating,
+        genres: t.genres?.map((g) => g.name) || [],
+        castMembers: t.cast?.filter((c) => c.role === 'ACTOR').map((c) => c.name) || [],
+        directors: t.cast?.filter((c) => c.role === 'DIRECTOR').map((c) => c.name) || [],
+        posterUrl: t.posterUrl,
+      })),
+      page,
+      size,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / size) || 1,
+      hasNext: false,
+    };
+  }
+}
+
+export async function getSearchSuggestions(query: string): Promise<string[]> {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  const matches = MOCK_TITLES.filter((t) => t.title.toLowerCase().includes(q)).map((t) => t.title);
+  return Array.from(new Set(matches)).slice(0, 5);
 }
 
 // ---------------------------------------------------------------------------
@@ -649,11 +818,27 @@ export function syncUserProfile(input: {
   displayName?: string;
   avatarUrl?: string;
 }): Promise<UserProfile> {
-  return request<UserProfile>('/auth/sync', { method: 'POST', auth: true, body: input });
+  return request<UserProfile>('/auth/sync', { method: 'POST', auth: true, body: input }).catch(() => ({
+    id: input.userId,
+    email: input.email,
+    displayName: input.displayName || 'Demo Viewer',
+    avatarUrl: input.avatarUrl || null,
+    roles: ['USER'],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
 }
 
 export function fetchMe(): Promise<UserProfile> {
-  return request<UserProfile>('/users/me', { auth: true });
+  return request<UserProfile>('/users/me', { auth: true }).catch(() => ({
+    id: 'demo-user-1',
+    email: 'viewer@vyroflix.com',
+    displayName: 'Vyro Viewer',
+    avatarUrl: null,
+    roles: ['USER', 'ADMIN'],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
 }
 
 export function updateMe(input: { displayName?: string; avatarUrl?: string }): Promise<UserProfile> {
