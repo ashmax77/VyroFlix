@@ -15,6 +15,7 @@ import {
   SearchResultPage,
 } from '../types';
 import { createClient } from './supabase/client';
+import { railToTitles, type RecommendationItem } from './mappers';
 
 const API_BASE = '/api/v1';
 
@@ -379,31 +380,6 @@ export async function getSearchSuggestions(query: string, limit = 5): Promise<st
   }
 }
 
-interface RecommendationItem {
-  titleId: string;
-  type?: Title['type'];
-  title: string;
-  reason?: string;
-  releaseYear?: number;
-  maturityRating?: string;
-  posterUrl?: string;
-  genres?: string[];
-}
-
-function railToTitles(data: { items?: RecommendationItem[] }): Title[] {
-  return (data.items ?? []).map((item) => ({
-    id: item.titleId,
-    type: item.type || 'MOVIE',
-    title: item.title,
-    synopsis: '',
-    releaseYear: item.releaseYear ?? 0,
-    maturityRating: item.maturityRating || '',
-    posterUrl: item.posterUrl || '',
-    bannerUrl: null,
-    publicationState: 'PUBLISHED' as const,
-    genres: (item.genres || []).map((name) => ({ id: name, name, slug: name })),
-  }));
-}
 
 /** Recommendations fail open: the home page renders without the rail instead of breaking. */
 export async function fetchTrendingRail(limit = 10): Promise<Title[]> {
