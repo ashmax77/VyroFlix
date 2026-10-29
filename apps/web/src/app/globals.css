@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 /*
- * Projection room palette. Each colour is stored as "R G B" so Tailwind can add opacity.
+ * Projection room palette, second pass: warmer blacks, one cool accent (projection light) instead of amber. Each colour is stored as "R G B" so Tailwind can add opacity.
  * Fonts are loaded by next/font in layout.tsx (no render-blocking @import here).
  */
 :root {
-  --booth: 14 12 10;          /* page background            #0E0C0A */
-  --screen: 26 22 19;         /* raised surfaces            #1A1613 */
-  --screen-raised: 34 29 25;  /* menus, inputs, hover base  #221D19 */
-  --gate: 42 36 32;           /* borders, dividers          #2A2420 */
-  --gate-subtle: 31 27 24;    /* faint dividers             #1F1B18 */
-  --film-grey: 140 133 124;   /* secondary text             #8C857C */
-  --paper: 242 235 221;       /* primary text               #F2EBDD */
-  --projector: 242 169 59;    /* play, active, focus only   #F2A93B */
+  --booth: 12 11 9;           /* page background            #0C0B09 */
+  --screen: 22 20 17;         /* raised surfaces            #161411 */
+  --screen-raised: 31 28 24;  /* menus, inputs, hover base  #1F1C18 */
+  --gate: 43 39 35;           /* borders, dividers          #2B2723 */
+  --gate-subtle: 30 27 24;    /* faint dividers             #1E1B18 */
+  --film-grey: 149 142 132;   /* secondary text             #958E84 */
+  --paper: 241 234 220;       /* primary text               #F1EADC */
+  --projector: 127 214 198;   /* projection light: play, active, focus only  #7FD6C6 */
   --danger: 229 89 79;        /* errors, destructive        #E5594F */
 
   --nav-h: 4rem;
@@ -45,8 +45,9 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif), Georgia, serif;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
 }
 
 :focus-visible {

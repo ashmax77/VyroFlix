@@ -65,41 +65,18 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
   };
 
   return (
-    <section aria-roledescription="carousel" aria-label="Featured" className="relative h-[min(72vh,720px)] min-h-[420px] w-full overflow-hidden bg-background">
-      {titleList.map((t, k) => (
-        <div
-          key={t.id}
-          aria-hidden={k !== index}
-          className={cn('absolute inset-0 transition-opacity duration-1000', k === index ? 'opacity-100' : 'pointer-events-none opacity-0')}
-        >
-          {(t.bannerUrl || t.posterUrl) && (
-            <Image
-              src={t.bannerUrl || t.posterUrl}
-              alt=""
-              fill
-              priority={k === 0}
-              sizes="100vw"
-              className="object-cover object-[center_20%]"
-            />
-          )}
-        </div>
-      ))}
-
-      {/* One scrim, for legibility of the copy only. */}
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-background/10" aria-hidden />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" aria-hidden />
-
-      <div key={active.id} className="animate-page-in relative mx-auto flex h-full max-w-container flex-col justify-end px-4 pb-14 sm:px-6 lg:px-10">
-        <div className="max-w-xl">
-          <h1 className="font-heading text-4xl font-semibold leading-[1.02] tracking-tight text-foreground sm:text-6xl">
+    <section aria-roledescription="carousel" aria-label="Featured" className="mx-auto max-w-container px-4 pb-6 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+      <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-end lg:gap-14">
+        <div key={active.id} className="animate-page-in order-2 flex flex-col lg:order-1">
+          <h1 className="text-[3.5rem] leading-[0.95] text-foreground sm:text-7xl lg:text-[6.5rem]">
             {active.title}
           </h1>
 
           {facts.length > 0 && (
-            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {facts.map((f, i) => (
                 <React.Fragment key={i}>
-                  {i > 0 && <span aria-hidden>·</span>}
+                  {i > 0 && <span className="h-3 w-px bg-border" aria-hidden />}
                   <span>{f}</span>
                 </React.Fragment>
               ))}
@@ -107,10 +84,10 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
           )}
 
           {active.synopsis && (
-            <p className="mt-4 line-clamp-3 text-base leading-relaxed text-foreground/85 sm:text-lg">{active.synopsis}</p>
+            <p className="mt-5 max-w-md line-clamp-3 text-base leading-relaxed text-foreground/80 sm:text-lg">{active.synopsis}</p>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button size="lg" onClick={() => router.push(`/watch/${active.id}`)} className="gap-2">
               <Play className="h-4 w-4 fill-current" aria-hidden /> Play
             </Button>
@@ -132,32 +109,55 @@ export default function HeroBillboard({ title, titles, loading }: HeroBillboardP
             </Button>
           </div>
           {message && <p role="alert" className="mt-3 text-sm text-danger">{message}</p>}
+
+          {titleList.length > 1 && (
+            <div className="mt-10 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPaused((p) => !p)}
+                aria-label={paused ? 'Resume rotation' : 'Pause rotation'}
+                className="grid h-8 w-8 place-items-center rounded-card border border-border text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {paused ? <Play className="ml-0.5 h-3.5 w-3.5" aria-hidden /> : <Pause className="h-3.5 w-3.5" aria-hidden />}
+              </button>
+              <div className="flex items-center gap-2" role="group" aria-label="Choose a featured title">
+                {titleList.map((t, k) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setIndex(k)}
+                    aria-label={`Show ${t.title}`}
+                    aria-current={k === index}
+                    className={cn('h-1 rounded-full transition-all', k === index ? 'w-10 bg-primary' : 'w-5 bg-foreground/25 hover:bg-foreground/50')}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {titleList.length > 1 && (
-          <div className="mt-10 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setPaused((p) => !p)}
-              aria-label={paused ? 'Resume rotation' : 'Pause rotation'}
-              className="grid h-8 w-8 place-items-center rounded-card border border-border text-muted-foreground hover:text-foreground"
-            >
-              {paused ? <Play className="ml-0.5 h-3.5 w-3.5" aria-hidden /> : <Pause className="h-3.5 w-3.5" aria-hidden />}
-            </button>
-            <div className="flex items-center gap-2" role="group" aria-label="Choose a featured title">
-              {titleList.map((t, k) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setIndex(k)}
-                  aria-label={`Show ${t.title}`}
-                  aria-current={k === index}
-                  className={cn('h-1 rounded-full transition-all', k === index ? 'w-8 bg-primary' : 'w-4 bg-foreground/30 hover:bg-foreground/60')}
+        {/* The backdrop sits in a frame, like a picture on a projection screen, not behind the copy. */}
+        <div className="relative order-1 aspect-[16/9] w-full overflow-hidden rounded-sm bg-screen lg:order-2">
+          {titleList.map((t, k) =>
+            t.bannerUrl || t.posterUrl ? (
+              <div
+                key={t.id}
+                aria-hidden={k !== index}
+                className={cn('absolute inset-0 transition-opacity duration-1000', k === index ? 'opacity-100' : 'pointer-events-none opacity-0')}
+              >
+                <Image
+                  src={t.bannerUrl || t.posterUrl}
+                  alt=""
+                  fill
+                  priority={k === 0}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="object-cover"
                 />
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            ) : null,
+          )}
+          <div className="absolute inset-0 ring-1 ring-inset ring-border" aria-hidden />
+        </div>
       </div>
     </section>
   );

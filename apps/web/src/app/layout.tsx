@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
-import { Fraunces, Instrument_Sans } from 'next/font/google';
+import { Instrument_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 
-// Titles and headings. The optical-size axis keeps small serif headings legible.
-const serif = Fraunces({
+// Titles and headings. A single-weight display serif that reads like a programme title card.
+const serif = Instrument_Serif({
   subsets: ['latin'],
+  weight: '400',
+  style: ['normal', 'italic'],
   variable: '--font-serif',
   display: 'swap',
-  axes: ['opsz'],
 });
 
 // Interface and body text.
