@@ -7,6 +7,7 @@ import { Poster } from '@/components/cards/Poster';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, PosterGridSkeleton } from '@/components/common';
 import { ApiError, fetchWatchlistPage } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { Title } from '@/types';
 
@@ -63,9 +64,17 @@ export default function MyListPage() {
     }
   }, [nextPage]);
 
+  // Wait for the session to be restored. A request sent before it is ready carries no token and comes back 401.
+  const { isAuthed, loading: authLoading } = useAuth();
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthed) {
+      setLoading(false);
+      setError({ message: 'Sign in to see your list.', unauthorized: true });
+      return;
+    }
     load();
-  }, [load]);
+  }, [authLoading, isAuthed, load]);
 
   if (loading) {
     return (

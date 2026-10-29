@@ -8,6 +8,7 @@ import VideoPlayer from '@/components/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, Spinner } from '@/components/common';
 import { ApiError, fetchTitle } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { SLOW_LOAD_MESSAGE, useSlowHint } from '@/lib/hooks';
 import type { Title } from '@/types';
 
@@ -26,6 +27,8 @@ export default function WatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const slow = useSlowHint(loading);
+  // The player opens a playback session as soon as it mounts, so it must not mount before the session is restored.
+  const { loading: authLoading } = useAuth();
 
   const load = useCallback(() => {
     if (!titleId) return;
@@ -46,7 +49,7 @@ export default function WatchPage() {
     return episodes.find((ep) => ep.id === episodeId) ?? episodes[0] ?? null;
   }, [title, episodeId]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <Stage>
         <Spinner label={slow ? SLOW_LOAD_MESSAGE : 'Loading the player…'} />
