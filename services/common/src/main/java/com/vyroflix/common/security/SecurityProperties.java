@@ -78,6 +78,6 @@ public class SecurityProperties {
         /**
          * Role to inject when mock auth is enabled (USER or ADMIN).
          */
-        private String role = "ADMIN";
+        private String role = "USER";
     }
 }

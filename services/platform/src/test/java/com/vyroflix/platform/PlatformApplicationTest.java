@@ -3,7 +3,6 @@ package com.vyroflix.platform;
 import com.vyroflix.content.service.AdminCatalogService;
 import com.vyroflix.content.service.CatalogService;
 import com.vyroflix.history.service.HistoryService;
-import com.vyroflix.identity.seeder.AdminUserSeeder;
 import com.vyroflix.identity.service.UserService;
 import com.vyroflix.recommendation.service.RecommendationService;
 import com.vyroflix.search.service.SearchService;
@@ -22,8 +21,6 @@ class PlatformApplicationTest {
     @MockBean
     private UserService userService;
 
-    @MockBean
-    private AdminUserSeeder adminUserSeeder;
 
     @MockBean
     private AdminCatalogService adminCatalogService;

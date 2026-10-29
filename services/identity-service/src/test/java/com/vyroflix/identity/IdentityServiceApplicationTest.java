@@ -1,6 +1,5 @@
 package com.vyroflix.identity;
 
-import com.vyroflix.identity.seeder.AdminUserSeeder;
 import com.vyroflix.identity.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,8 +13,6 @@ class IdentityServiceApplicationTest {
     @MockBean
     private UserService userService;
 
-    @MockBean
-    private AdminUserSeeder adminUserSeeder;
 
     @Test
     void contextLoads() {

@@ -32,12 +32,13 @@ No video bytes pass through Render or Vercel.
    jdbc:postgresql://aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
    ```
 4. **Google sign-in:** create a Google OAuth client, add the Supabase callback URL to it, then enable Google under *Authentication → Providers*. Add `https://<your-vercel-domain>/auth/callback` and `http://localhost:3000/auth/callback` under *Authentication → URL Configuration*.
-5. **Admin accounts.** Roles come only from the token's `app_metadata`. `user_metadata` is editable by users and is never trusted. Promote an administrator, then have them sign out and back in:
+5. **Admin account.** Roles come only from the token's `app_metadata`. `user_metadata` is editable by users and is never trusted. Admin is restricted to one account: the JWT converter honours `ADMIN` only for emails in `Constants.ADMIN_EMAIL_ALLOWLIST` (currently `imax77work@gmail.com`). Every other account is a USER with watch access only. To grant the role, run this, then have that account sign out and back in:
    ```sql
    update auth.users
    set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "ADMIN"}'::jsonb
-   where email = 'admin@example.com';
+   where email = 'imax77work@gmail.com';
    ```
+   To hand admin to someone else, change the allowlist, redeploy, then grant the role to their account.
 6. **Subscription plans** (manual, until payments exist). Valid values are `FREE` (the default), `BASIC` and `PREMIUM`:
    ```sql
    update auth.users

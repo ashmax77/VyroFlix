@@ -139,11 +139,24 @@ public class SupabaseJwtConverter implements Converter<Jwt, AbstractAuthenticati
             }
         }
 
+        // ADMIN is an allowlist, not just a claim: only the configured account may hold it.
+        if (roles.stream().anyMatch(Constants.ROLE_ADMIN::equalsIgnoreCase) && !isAdminEligible(jwt)) {
+            log.warn("ADMIN role on a token for a non-allowlisted account was ignored");
+            roles.removeIf(Constants.ROLE_ADMIN::equalsIgnoreCase);
+        }
+
         if (roles.isEmpty()) {
             roles.add(Constants.ROLE_USER);
         }
 
         return roles;
+    }
+
+    /** True when the token's email is on {@link Constants#ADMIN_EMAIL_ALLOWLIST} (case-insensitive). */
+    static boolean isAdminEligible(Jwt jwt) {
+        String email = jwt.getClaimAsString(CLAIM_EMAIL);
+        return email != null
+                && Constants.ADMIN_EMAIL_ALLOWLIST.stream().anyMatch(allowed -> allowed.equalsIgnoreCase(email));
     }
 
     /**

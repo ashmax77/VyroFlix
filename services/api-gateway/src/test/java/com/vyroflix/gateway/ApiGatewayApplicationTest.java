@@ -124,7 +124,7 @@ class ApiGatewayApplicationTest {
                 Map.of("alg", "HS256"),
                 Map.of(
                         "sub", UUID.randomUUID().toString(),
-                        "email", "admin@vyroflix.local",
+                        "email", "imax77work@gmail.com",
                         "app_metadata", Map.of("role", "ADMIN"),
                         "aud", "authenticated"
                 )

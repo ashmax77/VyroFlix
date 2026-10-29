@@ -21,7 +21,7 @@ class SupabaseJwtConverterTest {
         UUID userId = UUID.randomUUID();
         Jwt jwt = createJwt(
                 userId.toString(),
-                "admin@vyroflix.com",
+                "imax77work@gmail.com",
                 Map.of("role", "ADMIN"),
                 Map.of(),
                 "authenticated");
@@ -38,10 +38,31 @@ class SupabaseJwtConverterTest {
         assertTrue(token.getDetails() instanceof UserPrincipal);
         UserPrincipal principal = (UserPrincipal) token.getDetails();
         assertEquals(userId, principal.getUserId());
-        assertEquals("admin@vyroflix.com", principal.getEmail());
+        assertEquals("imax77work@gmail.com", principal.getEmail());
         assertEquals("ADMIN", principal.getRole());
         assertTrue(principal.isAdmin());
         assertTrue(principal.isUser());
+    }
+
+    @Test
+    @DisplayName("ADMIN app_metadata on a non-allowlisted account is downgraded to USER")
+    void adminRoleOnOtherAccountIsIgnored() {
+        Jwt jwt = createJwt(
+                UUID.randomUUID().toString(),
+                "someone.else@example.com",
+                Map.of("role", "ADMIN"),
+                Map.of(),
+                "authenticated");
+
+        AbstractAuthenticationToken token = converter.convert(jwt);
+
+        Set<String> authorities = getAuthorityNames(token);
+        assertFalse(authorities.contains("ROLE_ADMIN"));
+        assertTrue(authorities.contains("ROLE_USER"));
+
+        UserPrincipal principal = (UserPrincipal) token.getDetails();
+        assertEquals("USER", principal.getRole());
+        assertFalse(principal.isAdmin());
     }
 
     @Test

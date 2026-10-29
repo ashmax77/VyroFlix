@@ -48,6 +48,12 @@ public final class Constants {
     public static final String ROLE_USER = "USER";
     public static final String ROLE_ADMIN = "ADMIN";
 
+    /**
+     * The only account allowed to hold ADMIN. A token carrying ADMIN for any other email is downgraded to USER
+     * by the JWT converter, so a role set by mistake on another account grants nothing.
+     */
+    public static final java.util.Set<String> ADMIN_EMAIL_ALLOWLIST = java.util.Set.of("imax77work@gmail.com");
+
     // ------------------------------------------------------------------ //
     // Subscription plans (from app_metadata.plan; server-controlled)       //
     // ------------------------------------------------------------------ //
