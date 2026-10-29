@@ -3,8 +3,6 @@ package com.vyroflix.platform;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
@@ -20,11 +18,7 @@ import org.springframework.context.annotation.FilterType;
 // @AutoConfiguration classes (outbox, JPA-dependent beans) must not be picked up by component scanning: scanned
 // configuration is processed before JPA exists, so their @ConditionalOnBean checks never match. They are still
 // registered through META-INF/spring/...AutoConfiguration.imports, in the right order.
-// Entities and repositories of every merged domain are declared here, not inherited from an auto-configuration's
-// @EntityScan, which is processed too late to take effect for the other domains.
 @SpringBootApplication
-@EntityScan(basePackages = "com.vyroflix")
-@EnableJpaRepositories(basePackages = "com.vyroflix")
 @ComponentScan(excludeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = AutoConfiguration.class),
         basePackages = {
         "com.vyroflix.common",
